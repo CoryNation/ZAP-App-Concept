@@ -1,19 +1,34 @@
 'use client';
 
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { Stack, Card, CardContent, Typography, TextField, MenuItem, Button, Alert } from '@mui/material';
+import {
+  Stack, Card, CardContent, Typography, TextField, MenuItem, Button, Alert
+} from '@mui/material';
+
+// Avoid static prerender & satisfy useSearchParams rule
+export const dynamic = 'force-dynamic';
 
 export default function JoinPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 16 }}>Loading…</div>}>
+      <JoinInner />
+    </Suspense>
+  );
+}
+
+function JoinInner() {
   const params = useSearchParams();
+
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('operator');
   const [note, setNote] = useState('');
   const [ok, setOk] = useState('');
   const [err, setErr] = useState('');
 
-  const company_id = params.get('company') || '';   // REQUIRED in the link you share
+  // read from URL: ?company=<uuid>&factory=<uuid>&line=<uuid>
+  const company_id = params.get('company') || '';
   const factory_id = params.get('factory') || '';
   const line_id    = params.get('line') || '';
 
@@ -23,8 +38,12 @@ export default function JoinPage() {
     try {
       if (!company_id) throw new Error('Missing company id in link.');
       const { error } = await supabase.from('org_join_requests').insert([{
-        company_id, factory_id: factory_id || null, line_id: line_id || null,
-        email: email.trim().toLowerCase(), role, note
+        company_id,
+        factory_id: factory_id || null,
+        line_id: line_id || null,
+        email: email.trim().toLowerCase(),
+        role,
+        note
       }]);
       if (error) throw error;
       setOk('Request submitted. An admin will review and send you an invite.');
@@ -44,13 +63,38 @@ export default function JoinPage() {
 
           <form onSubmit={submit}>
             <Stack spacing={2}>
-              <TextField label="Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required />
-              <TextField select label="Requested Role" value={role} onChange={e=>setRole(e.target.value)}>
+              <TextField
+                label="Email"
+                type="email"
+                value={email}
+                onChange={e=>setEmail(e.target.value)}
+                required
+              />
+              <TextField
+                select
+                label="Requested Role"
+                value={role}
+                onChange={e=>setRole(e.target.value)}
+              >
                 <MenuItem value="operator">Operator</MenuItem>
                 <MenuItem value="supervisor">Supervisor</MenuItem>
                 <MenuItem value="admin">Admin</MenuItem>
               </TextField>
-              <TextField label="Notes (optional)" multiline minRows={3} value={note} onChange={e=>setNote(e.target.value)} />
+              <TextField
+                label="Notes (optional)"
+                multiline
+                minRows={3}
+                value={note}
+                onChange={e=>setNote(e.target.value)}
+              />
+
+              {/* Helpful debug (optional): show which company this will target */}
+              {!company_id && (
+                <Alert severity="warning">
+                  This link is missing a company id. Ask your admin for the correct join link.
+                </Alert>
+              )}
+
               <Button type="submit">Submit Request</Button>
             </Stack>
           </form>
