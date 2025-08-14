@@ -2,6 +2,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
+import {
+  Stack, Typography, Card, CardContent, Table, TableHead, TableRow, TableCell,
+  TableBody, Button, Chip
+} from '@mui/material';
+import BuildCircleIcon from '@mui/icons-material/BuildCircle';
 
 export default function GreasyTwin() {
   const router = useRouter();
@@ -19,18 +24,13 @@ export default function GreasyTwin() {
   }, [router]);
 
   async function refresh() {
-    // 1) bearings (id, label, machine_id)
     const { data: bearings, error: bErr } = await supabase
       .from('bearings')
       .select('id,label,machine_id')
       .order('label');
     if (bErr) return alert('Load bearings error: ' + bErr.message);
-    if (!bearings || bearings.length === 0) {
-      setRows([]);
-      return;
-    }
+    if (!bearings || bearings.length === 0) return setRows([]);
 
-    // 2) machines for those bearings
     const machineIds = Array.from(new Set(bearings.map(b => b.machine_id)));
     const { data: machines, error: mErr } = await supabase
       .from('machines')
@@ -39,7 +39,6 @@ export default function GreasyTwin() {
     if (mErr) return alert('Load machines error: ' + mErr.message);
     const machineMap = new Map(machines?.map(m => [m.id, m]) || []);
 
-    // 3) latest reading per bearing
     const bearingIds = bearings.map(b => b.id);
     const { data: readings, error: rErr } = await supabase
       .from('grease_readings')
@@ -49,9 +48,7 @@ export default function GreasyTwin() {
     if (rErr) return alert('Load readings error: ' + rErr.message);
 
     const latest = new Map();
-    (readings || []).forEach(r => {
-      if (!latest.has(r.bearing_id)) latest.set(r.bearing_id, r);
-    });
+    (readings || []).forEach(r => { if (!latest.has(r.bearing_id)) latest.set(r.bearing_id, r); });
 
     setRows(bearings.map(b => {
       const m = machineMap.get(b.machine_id);
@@ -74,7 +71,7 @@ export default function GreasyTwin() {
       const body = {
         bearing_id,
         frequency_hz: next === 'greased' ? 180 : 420,
-        status: next, // server enum; supabase-js will send as text and Postgres casts
+        status: next,
         last_greased_date: next === 'greased' ? new Date().toISOString().slice(0,10) : null,
         next_grease_due_date: next === 'greased'
           ? new Date(Date.now() + 1000*60*60*24*10).toISOString().slice(0,10)
@@ -90,41 +87,64 @@ export default function GreasyTwin() {
     }
   }
 
-  if (!ready) return <div style={{ padding: 16 }}>Loading…</div>;
+  if (!ready) return <div>Loading…</div>;
 
   return (
-    <main style={{ padding: 16, maxWidth: 820, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 24, marginBottom: 12 }}>Greasy Twin (Demo)</h1>
-      <p style={{ marginBottom: 12 }}>
-        Click “Simulate Reading” to flip a bearing between <em>Needs Grease</em> and <em>Greased</em>.
-      </p>
+    <Stack spacing={2}>
+      <Typography variant="h5">Greasy Twin (Demo)</Typography>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 8, fontWeight: 600, borderBottom: '1px solid #ddd', paddingBottom: 6 }}>
-        <div>Bearing</div><div>Machine</div><div>Status</div><div>Freq (Hz)</div><div>Actions</div>
-      </div>
+      <Card>
+        <CardContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Click <em>Simulate Reading</em> to flip a bearing between <strong>Needs Grease</strong> and <strong>Greased</strong>.
+          </Typography>
 
-      {rows.length === 0 && (
-        <div style={{ padding: '12px 0' }}>
-          No bearings found. Run the seed block in the SQL editor (the “repair/seed to my profile” script),
-          then refresh this page.
-        </div>
-      )}
-
-      {rows.map(r => (
-        <div key={r.bearing_id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 8, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f1f1' }}>
-          <div>{r.label}</div>
-          <div>{r.machine}</div>
-          <div style={{ color: r.reading?.status === 'needs_grease' ? '#b51e27' : 'green', fontWeight: 600 }}>
-            {r.reading?.status || '—'}
-          </div>
-          <div>{r.reading?.frequency_hz ?? '—'}</div>
-          <div>
-            <button onClick={() => simulateGrease(r.bearing_id)} disabled={busy} style={{ padding: '6px 10px' }}>
-              {busy ? 'Working…' : 'Simulate Reading'}
-            </button>
-          </div>
-        </div>
-      ))}
-    </main>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Bearing</TableCell>
+                <TableCell>Machine</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Freq (Hz)</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map(r => (
+                <TableRow key={r.bearing_id}>
+                  <TableCell>{r.label}</TableCell>
+                  <TableCell>{r.machine}</TableCell>
+                  <TableCell>
+                    {r.reading?.status
+                      ? <Chip
+                          label={r.reading.status.replace('_',' ')}
+                          color={r.reading.status === 'needs_grease' ? 'error' : 'success'}
+                          variant="outlined"
+                          size="small"
+                        />
+                      : '—'}
+                  </TableCell>
+                  <TableCell>{r.reading?.frequency_hz ?? '—'}</TableCell>
+                  <TableCell align="right">
+                    <Button
+                      startIcon={<BuildCircleIcon />}
+                      onClick={() => simulateGrease(r.bearing_id)}
+                      disabled={busy}
+                    >
+                      Simulate Reading
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5}>No bearings found. Seed demo data and refresh.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </Stack>
   );
 }
