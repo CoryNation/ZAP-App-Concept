@@ -7,14 +7,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   Box, Card, CardContent, TextField, Button,
-  Stack, Typography, Alert
+  Stack, Typography, Alert, Divider
 } from '@mui/material';
+import GoogleIcon from '@mui/icons-material/Google';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -26,9 +28,34 @@ export default function LoginPage() {
   async function handleLogin(e) {
     e.preventDefault();
     setErr('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
-    if (error) return setErr(error.message);
-    router.replace('/');
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+      if (error) throw error;
+      router.replace('/');
+    } catch (e) {
+      setErr(e.message || 'Sign‑in failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogle() {
+    setErr('');
+    setLoading(true);
+    try {
+      // Use the same callback path you registered in Google + Supabase
+      const redirectTo = `${window.location.origin}/api/auth/callback`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo, scopes: 'openid email profile' }
+      });
+      if (error) throw error;
+      // Supabase will redirect; no further code runs here
+    } catch (e) {
+      setErr(e.message || 'Google sign‑in failed');
+      setLoading(false);
+    }
   }
 
   return (
@@ -37,13 +64,12 @@ export default function LoginPage() {
         position: 'relative',
         width: '100vw',
         minHeight: '100vh',
-        overflow: 'hidden',      // prevent scrollbars from background
-        bgcolor: 'grey.900',     // safe fallback behind the image
+        overflow: 'hidden',
+        bgcolor: 'grey.900',
       }}
     >
-      {/* Background image: fills full width, keeps aspect ratio */}
+      {/* Background image: fills full width, preserves aspect ratio */}
       <Box sx={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-        {/* Using plain <img> for strict 100% width / auto height behavior */}
         <img
           src="/hero-zekelman.jpg"
           alt="Zekelman manufacturing"
@@ -69,12 +95,7 @@ export default function LoginPage() {
         sx={{ position: 'relative', zIndex: 2, minHeight: '100vh' }}
       >
         {/* Left brand/story panel */}
-        <Box sx={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          p: { xs: 3, md: 8 }
-        }}>
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', p: { xs: 3, md: 8 } }}>
           <Box sx={{ color: 'common.white', maxWidth: 700 }}>
             <Box component={Link} href="/" sx={{ display: 'inline-block', mb: 3 }}>
               <Image src="/zekelman-logo.png" alt="Zekelman" width={160} height={40} priority />
@@ -112,26 +133,41 @@ export default function LoginPage() {
               <Typography variant="h5" sx={{ mb: 2 }}>Sign in</Typography>
               {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
 
-              <Box component="form" onSubmit={handleLogin}>
-                <Stack spacing={2}>
-                  <TextField
-                    label="Email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    fullWidth
-                    autoFocus
-                  />
-                  <TextField
-                    label="Password"
-                    type="password"
-                    value={pw}
-                    onChange={(e) => setPw(e.target.value)}
-                    fullWidth
-                  />
-                  <Button type="submit">Sign in</Button>
-                </Stack>
-              </Box>
+              <Stack spacing={1.5}>
+                <Button
+                  onClick={handleGoogle}
+                  startIcon={<GoogleIcon />}
+                  disabled={loading}
+                  variant="outlined"
+                >
+                  Sign in with Google
+                </Button>
+
+                <Divider sx={{ my: 1 }}>or</Divider>
+
+                <Box component="form" onSubmit={handleLogin}>
+                  <Stack spacing={2}>
+                    <TextField
+                      label="Email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      fullWidth
+                      autoComplete="username"
+                      autoFocus
+                    />
+                    <TextField
+                      label="Password"
+                      type="password"
+                      value={pw}
+                      onChange={(e) => setPw(e.target.value)}
+                      fullWidth
+                      autoComplete="current-password"
+                    />
+                    <Button type="submit" disabled={loading}>Sign in</Button>
+                  </Stack>
+                </Box>
+              </Stack>
             </CardContent>
           </Card>
         </Box>
