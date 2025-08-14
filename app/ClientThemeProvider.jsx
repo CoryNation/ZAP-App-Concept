@@ -94,13 +94,15 @@ export default function ClientThemeProvider({ children }) {
   }
 
   // Simple active state for nav buttons
-  const activeKey = useMemo(() => {
-    if (pathname.startsWith('/work-requests')) return 'work';
-    if (pathname.startsWith('/inventory')) return 'inv';
-    if (pathname.startsWith('/greasy-twin')) return 'grease';
-    if (pathname.startsWith('/admin')) return 'admin';
-    return 'home';
-  }, [pathname]);
+const activeKey = useMemo(() => {
+  if (pathname.startsWith('/factory-performance')) return 'factory';
+  if (pathname.startsWith('/work-requests')) return 'work';
+  if (pathname.startsWith('/inventory')) return 'inv';
+  if (pathname.startsWith('/greasy-twin')) return 'grease';
+  if (pathname.startsWith('/admin')) return 'admin';
+  return 'home';
+}, [pathname]);
+
 
   return (
     <ThemeProvider theme={theme}>
