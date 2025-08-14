@@ -1,7 +1,9 @@
 'use client';
+
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
+import { useScope } from '../../lib/scope';
 import {
   Box, Card, CardContent, Typography, Grid, TextField, MenuItem, Button,
   Table, TableHead, TableRow, TableCell, TableBody, Snackbar, Alert, Stack
@@ -9,6 +11,7 @@ import {
 
 export default function Inventory() {
   const router = useRouter();
+  const [scope] = useScope();
   const [ready, setReady] = useState(false);
   const [rows, setRows] = useState([]);
   const [lines, setLines] = useState([]);
@@ -29,24 +32,33 @@ export default function Inventory() {
       if (error) return alert('Auth error: ' + error.message);
       if (!session) return router.replace('/login');
       setReady(true);
-      await Promise.all([refresh(), loadLines()]);
-    })().catch(err => setToast({ open: true, msg: err.message, severity: 'error' }));
+    })();
   }, [router]);
 
+  useEffect(() => {
+    if (!ready) return;
+    Promise.all([refresh(), loadLines()])
+      .catch(err => setToast({ open: true, msg: err.message, severity: 'error' }));
+  }, [ready, scope.factoryId, scope.lineId]);
+
   async function refresh() {
-    const { data, error } = await supabase
-      .from('inventory')
-      .select('id, material_id, material_state, quantity, unit_of_measure, last_updated')
+    let qb = supabase.from('inventory')
+      .select('id, company_id, factory_id, line_id, material_id, material_state, quantity, unit_of_measure, last_updated')
       .order('last_updated', { ascending: false });
+    if (scope.factoryId) qb = qb.eq('factory_id', scope.factoryId);
+    if (scope.lineId)    qb = qb.eq('line_id', scope.lineId);
+    const { data, error } = await qb;
     if (error) return setToast({ open: true, msg: error.message, severity: 'error' });
     setRows(data ?? []);
   }
 
   async function loadLines() {
+    if (!scope.factoryId) { setLines([]); return; }
     const { data, error } = await supabase
       .from('lines')
       .select('id, name')
-      .order('name', { ascending: true });
+      .eq('factory_id', scope.factoryId)
+      .order('name');
     if (error) console.warn(error.message);
     setLines(data ?? []);
   }
@@ -81,8 +93,8 @@ export default function Inventory() {
 
       const payload = {
         company_id: profile.company_id,
-        factory_id: profile.factory_id,
-        line_id: form.line_id || null,
+        factory_id: scope.factoryId || profile.factory_id,
+        line_id: scope.lineId || (form.line_id || null),
         material_id: form.material_id.trim(),
         material_state: form.material_state,
         quantity: Number(form.quantity),
@@ -136,7 +148,7 @@ export default function Inventory() {
               </Grid>
               <Grid item xs={12} md={3}>
                 <TextField select label="Line (optional)" fullWidth value={form.line_id}
-                  onChange={(e) => setForm(f => ({ ...f, line_id: e.target.value }))}>
+                  onChange={(e) => setForm(f => ({ ...f, line_id: e.target.value }))} disabled={!scope.factoryId}>
                   <MenuItem value="">—</MenuItem>
                   {lines.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
                 </TextField>
@@ -173,6 +185,9 @@ export default function Inventory() {
                     <TableCell>{new Date(r.last_updated).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
+                {(!grouped[state] || grouped[state].length === 0) && (
+                  <TableRow><TableCell colSpan={4}>No items.</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
