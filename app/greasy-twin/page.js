@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-// NOTE: relative import (no "@/")
 import { supabase } from '../../lib/supabaseClient';
 
 export default function GreasyTwin() {
@@ -20,42 +19,50 @@ export default function GreasyTwin() {
   }, [router]);
 
   async function refresh() {
-    // Load bearings with machine info
+    // 1) bearings (id, label, machine_id)
     const { data: bearings, error: bErr } = await supabase
       .from('bearings')
-      .select('id,label,machine_id,machines:machine_id (asset_number,name)')
+      .select('id,label,machine_id')
       .order('label');
-    if (bErr) {
-      alert('Load bearings error: ' + bErr.message);
-      return;
-    }
+    if (bErr) return alert('Load bearings error: ' + bErr.message);
     if (!bearings || bearings.length === 0) {
       setRows([]);
       return;
     }
 
-    const ids = bearings.map(b => b.id);
+    // 2) machines for those bearings
+    const machineIds = Array.from(new Set(bearings.map(b => b.machine_id)));
+    const { data: machines, error: mErr } = await supabase
+      .from('machines')
+      .select('id, asset_number, name')
+      .in('id', machineIds);
+    if (mErr) return alert('Load machines error: ' + mErr.message);
+    const machineMap = new Map(machines?.map(m => [m.id, m]) || []);
+
+    // 3) latest reading per bearing
+    const bearingIds = bearings.map(b => b.id);
     const { data: readings, error: rErr } = await supabase
       .from('grease_readings')
       .select('id,bearing_id,frequency_hz,status,last_greased_date,next_grease_due_date,created_at')
-      .in('bearing_id', ids)
+      .in('bearing_id', bearingIds)
       .order('created_at', { ascending: false });
-    if (rErr) {
-      alert('Load readings error: ' + rErr.message);
-      return;
-    }
+    if (rErr) return alert('Load readings error: ' + rErr.message);
 
     const latest = new Map();
     (readings || []).forEach(r => {
       if (!latest.has(r.bearing_id)) latest.set(r.bearing_id, r);
     });
 
-    setRows(bearings.map(b => ({
-      bearing_id: b.id,
-      label: b.label,
-      machine: b.machines?.asset_number ? `${b.machines.asset_number} — ${b.machines.name || 'Machine'}` : '',
-      reading: latest.get(b.id) || null
-    })));
+    setRows(bearings.map(b => {
+      const m = machineMap.get(b.machine_id);
+      const reading = latest.get(b.id) || null;
+      return {
+        bearing_id: b.id,
+        label: b.label,
+        machine: m ? `${m.asset_number} — ${m.name || 'Machine'}` : '',
+        reading
+      };
+    }));
   }
 
   async function simulateGrease(bearing_id) {
@@ -67,7 +74,7 @@ export default function GreasyTwin() {
       const body = {
         bearing_id,
         frequency_hz: next === 'greased' ? 180 : 420,
-        status: next, // enum on server; acceptable via supabase-js
+        status: next, // server enum; supabase-js will send as text and Postgres casts
         last_greased_date: next === 'greased' ? new Date().toISOString().slice(0,10) : null,
         next_grease_due_date: next === 'greased'
           ? new Date(Date.now() + 1000*60*60*24*10).toISOString().slice(0,10)
@@ -98,7 +105,8 @@ export default function GreasyTwin() {
 
       {rows.length === 0 && (
         <div style={{ padding: '12px 0' }}>
-          No bearings yet. Make sure you seeded M‑101 plus “Bearing A/B”, or add a bearing tied to a machine.
+          No bearings found. Run the seed block in the SQL editor (the “repair/seed to my profile” script),
+          then refresh this page.
         </div>
       )}
 
