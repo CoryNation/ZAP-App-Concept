@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-// NOTE: relative import (no "@/")
 import { supabase } from '../lib/supabaseClient';
+import { Box, Card, CardContent, Typography, Button, Stack, Chip } from '@mui/material';
+import InsightsIcon from '@mui/icons-material/Insights';
 
 export default function Home() {
   const router = useRouter();
@@ -12,10 +13,7 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        alert('Auth error: ' + error.message);
-        return;
-      }
+      if (error) return alert('Auth error: ' + error.message);
       if (!data.session) return router.replace('/login');
       setEmail(data.session.user.email ?? null);
       setReady(true);
@@ -27,9 +25,8 @@ export default function Home() {
     router.replace('/login');
   };
 
-  if (!ready) return <div style={{ padding: 16 }}>Loading…</div>;
+  if (!ready) return <div>Loading…</div>;
 
-  // --- AI Showcase (mock) ---
   const next7 = [
     { day: 'Thu', units: 1180 },
     { day: 'Fri', units: 1205 },
@@ -42,33 +39,30 @@ export default function Home() {
   const forecast = next7.map(x => x.units).join(' • ');
 
   return (
-    <main style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 24, marginBottom: 8 }}>ZAP App</h1>
-      <p>Signed in as {email}</p>
+    <Stack spacing={2}>
+      <Typography variant="h5">Welcome, {email}</Typography>
 
-      <nav style={{ margin: '12px 0' }}>
-        <a href="/me" style={{ marginRight: 12 }}>My Profile</a>
-        <a href="/work-requests" style={{ marginRight: 12 }}>Work Requests</a>
-        <a href="/inventory" style={{ marginRight: 12 }}>Inventory</a>
-        <a href="/greasy-twin">Greasy Twin</a>
-      </nav>
+      <Card>
+        <CardContent>
+          <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+            <InsightsIcon color="primary" />
+            <Typography variant="h6">AI Insight — Predictive Production (Demo)</Typography>
+            <Chip label="Demo" size="small" color="secondary" variant="outlined" />
+          </Stack>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+            Next 7 days (units): {forecast}
+          </Typography>
+          <Box component="ul" sx={{ m: 0, pl: 3 }}>
+            <li>Top driver: Planned maintenance on Line A (Sat/Sun)</li>
+            <li>Watchlist: Weld spatter recurrence risk on M‑101</li>
+            <li>Suggestion: Pre‑stage slit coil for Mon–Wed demand</li>
+          </Box>
+        </CardContent>
+      </Card>
 
-      {/* AI Insight card (demo only) */}
-      <section style={{ border: '1px solid #ddd', padding: 12, marginTop: 12, maxWidth: 640 }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>AI Insight — Predictive Production (Demo)</div>
-        <div style={{ fontSize: 14, marginBottom: 8 }}>
-          Next 7 days (units): {forecast}
-        </div>
-        <ul style={{ margin: 0, paddingLeft: 18 }}>
-          <li>Top driver: Planned maintenance on Line A (Sat/Sun)</li>
-          <li>Watchlist: Weld spatter recurrence risk on M‑101</li>
-          <li>Suggestion: Pre‑stage slit coil for Mon–Wed demand</li>
-        </ul>
-      </section>
-
-      <button onClick={signOut} style={{ marginTop: 16, padding: '8px 12px' }}>
-        Sign out
-      </button>
-    </main>
+      <Box>
+        <Button onClick={signOut} variant="outlined" color="primary">Sign out</Button>
+      </Box>
+    </Stack>
   );
 }
