@@ -1,13 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 import {
   Box, Card, CardContent, Stack, Typography, Button, Alert, TextField
 } from '@mui/material';
 
-export default function InviteAcceptPage() {
+// Tell Next this route is dynamic (no static prerender), which avoids CSR bailout issues.
+export const dynamic = 'force-dynamic';
+
+export default function InvitePage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 16 }}>Loading…</div>}>
+      <InviteAcceptInner />
+    </Suspense>
+  );
+}
+
+function InviteAcceptInner() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get('token');
@@ -24,25 +35,12 @@ export default function InviteAcceptPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         // Already signed in → try accept
-        doAccept();
+        doAccept(token, router, setErr, setOk);
       } else {
         setSessionChecked(true);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  async function doAccept() {
-    try {
-      setErr('');
-      const { error } = await supabase.rpc('accept_invite', { p_token: token });
-      if (error) throw error;
-      setOk('Invite accepted. Redirecting…');
-      setTimeout(() => router.replace('/'), 800);
-    } catch (e) {
-      setErr(e.message || 'Failed to accept invite');
-    }
-  }
+  }, [token, router]);
 
   async function signUp(e) {
     e.preventDefault();
@@ -54,12 +52,12 @@ export default function InviteAcceptPage() {
         options: { emailRedirectTo: `${window.location.origin}/invite?token=${token}` }
       });
       if (error) throw error;
-      // If email confirmation is ON, user will confirm and be redirected back here
+      // If email confirmation is OFF, we’ll have a session and can accept immediately.
+      // If ON, user confirms and returns to this page; effect above will run again.
       if (data.user) {
-        // If confirmation is OFF, accept immediately
-        await doAccept();
+        await doAccept(token, router, setErr, setOk);
       } else {
-        setOk('Check your email to confirm, then you will be redirected here to complete the invite.');
+        setOk('Check your email to confirm, then reopen this invite link to complete joining.');
       }
     } catch (e) {
       setErr(e.message || 'Sign up failed');
@@ -69,7 +67,7 @@ export default function InviteAcceptPage() {
   async function signIn() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) return doAccept();
+      if (session) return doAccept(token, router, setErr, setOk);
       setErr('Please sign in from the login page, then reopen your invite link.');
     } catch (e) {
       setErr(e.message || 'Sign in required');
@@ -93,7 +91,8 @@ export default function InviteAcceptPage() {
               ) : (
                 <Stack spacing={2}>
                   <Typography>
-                    To join your organization, create an account with the **same email** that the invite was sent to, or sign in and we’ll attach your access automatically.
+                    To join your organization, create an account with the <b>same email</b> the invite was sent to,
+                    or sign in and we’ll attach your access automatically.
                   </Typography>
 
                   <Box component="form" onSubmit={signUp}>
@@ -115,4 +114,16 @@ export default function InviteAcceptPage() {
       </Card>
     </Stack>
   );
+}
+
+async function doAccept(token, router, setErr, setOk) {
+  try {
+    setErr('');
+    const { error } = await supabase.rpc('accept_invite', { p_token: token });
+    if (error) throw error;
+    setOk('Invite accepted. Redirecting…');
+    setTimeout(() => router.replace('/'), 800);
+  } catch (e) {
+    setErr(e.message || 'Failed to accept invite');
+  }
 }
