@@ -1,15 +1,20 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-// NOTE: relative import (no "@/")
 import { supabase } from '../../lib/supabaseClient';
+import {
+  Box, Card, CardContent, Typography, Grid, TextField, MenuItem, Button,
+  Table, TableHead, TableRow, TableCell, TableBody, Snackbar, Alert, Stack
+} from '@mui/material';
 
 export default function Inventory() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [rows, setRows] = useState([]);
-  const [submitting, setSubmitting] = useState(false);
   const [lines, setLines] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState({ open: false, msg: '', severity: 'success' });
+
   const [form, setForm] = useState({
     material_id: '',
     material_state: 'raw_coil',
@@ -25,7 +30,7 @@ export default function Inventory() {
       if (!session) return router.replace('/login');
       setReady(true);
       await Promise.all([refresh(), loadLines()]);
-    })().catch(err => alert('Init error: ' + err.message));
+    })().catch(err => setToast({ open: true, msg: err.message, severity: 'error' }));
   }, [router]);
 
   async function refresh() {
@@ -33,7 +38,7 @@ export default function Inventory() {
       .from('inventory')
       .select('id, material_id, material_state, quantity, unit_of_measure, last_updated')
       .order('last_updated', { ascending: false });
-    if (error) return alert('Load error: ' + error.message);
+    if (error) return setToast({ open: true, msg: error.message, severity: 'error' });
     setRows(data ?? []);
   }
 
@@ -42,7 +47,7 @@ export default function Inventory() {
       .from('lines')
       .select('id, name')
       .order('name', { ascending: true });
-    if (error) console.warn('Lines load error:', error.message);
+    if (error) console.warn(error.message);
     setLines(data ?? []);
   }
 
@@ -60,24 +65,19 @@ export default function Inventory() {
 
   async function createItem(e) {
     e.preventDefault();
-    if (!form.material_id) return alert('Material ID is required');
-    if (!form.quantity || isNaN(Number(form.quantity))) return alert('Quantity must be a number');
+    if (!form.material_id) return setToast({ open: true, msg: 'Material ID is required', severity: 'warning' });
+    if (!form.quantity || isNaN(Number(form.quantity))) return setToast({ open: true, msg: 'Quantity must be a number', severity: 'warning' });
 
-    setSubmitting(true);
+    setBusy(true);
     try {
       const { data: { session }, error: sessErr } = await supabase.auth.getSession();
       if (sessErr) throw new Error('Auth error: ' + sessErr.message);
       if (!session) return router.replace('/login');
 
       const { data: profile, error: profErr } = await supabase
-        .from('profiles')
-        .select('company_id,factory_id')
-        .eq('user_id', session.user.id)
-        .single();
+        .from('profiles').select('company_id,factory_id')
+        .eq('user_id', session.user.id).single();
       if (profErr) throw new Error('Profile error: ' + profErr.message);
-      if (!profile?.company_id || !profile?.factory_id) {
-        throw new Error('Your profile is missing company/factory assignment.');
-      }
 
       const payload = {
         company_id: profile.company_id,
@@ -94,83 +94,94 @@ export default function Inventory() {
 
       setForm({ material_id: '', material_state: 'raw_coil', quantity: '', unit_of_measure: 'tons', line_id: '' });
       await refresh();
-      alert('Inventory item added.');
+      setToast({ open: true, msg: 'Inventory item added.', severity: 'success' });
     } catch (err) {
-      alert(err.message || String(err));
+      setToast({ open: true, msg: err.message || String(err), severity: 'error' });
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
   }
 
-  if (!ready) return <div style={{ padding: 16 }}>Loading…</div>;
+  if (!ready) return <div>Loading…</div>;
 
   return (
-    <main style={{ padding: 16, maxWidth: 1000, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 24, marginBottom: 12 }}>Inventory</h1>
+    <Stack spacing={2}>
+      <Typography variant="h5">Inventory</Typography>
 
-      <form onSubmit={createItem} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 20 }}>
-        <input
-          placeholder="Material ID"
-          value={form.material_id}
-          onChange={(e) => setForm(f => ({ ...f, material_id: e.target.value }))}
-          style={{ padding: 8 }}
-        />
-        <select
-          value={form.material_state}
-          onChange={(e) => setForm(f => ({ ...f, material_state: e.target.value }))}
-          style={{ padding: 8 }}
-        >
-          <option value="raw_coil">Raw Coil</option>
-          <option value="slit_coil">Slit Coil</option>
-          <option value="wip">WIP</option>
-          <option value="finished">Finished</option>
-        </select>
-        <input
-          placeholder="Quantity"
-          value={form.quantity}
-          onChange={(e) => setForm(f => ({ ...f, quantity: e.target.value }))}
-          style={{ padding: 8 }}
-        />
-        <input
-          placeholder="UoM (e.g., tons, ft)"
-          value={form.unit_of_measure}
-          onChange={(e) => setForm(f => ({ ...f, unit_of_measure: e.target.value }))}
-          style={{ padding: 8 }}
-        />
-        <select
-          value={form.line_id}
-          onChange={(e) => setForm(f => ({ ...f, line_id: e.target.value }))}
-          style={{ padding: 8 }}
-        >
-          <option value="">(optional) Line…</option>
-          {lines.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-        </select>
-        <button type="submit" disabled={submitting} style={{ gridColumn: 'span 5', padding: '8px 12px' }}>
-          {submitting ? 'Adding…' : 'Add Inventory Item'}
-        </button>
-      </form>
+      <Card>
+        <CardContent>
+          <Typography variant="subtitle1" gutterBottom>Add Item</Typography>
+          <Box component="form" onSubmit={createItem}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={3}>
+                <TextField label="Material ID" fullWidth value={form.material_id}
+                  onChange={(e) => setForm(f => ({ ...f, material_id: e.target.value }))}/>
+              </Grid>
+              <Grid item xs={12} md={2}>
+                <TextField select label="State" fullWidth value={form.material_state}
+                  onChange={(e) => setForm(f => ({ ...f, material_state: e.target.value }))}>
+                  <MenuItem value="raw_coil">Raw Coil</MenuItem>
+                  <MenuItem value="slit_coil">Slit Coil</MenuItem>
+                  <MenuItem value="wip">WIP</MenuItem>
+                  <MenuItem value="finished">Finished</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} md={2}>
+                <TextField label="Quantity" fullWidth value={form.quantity}
+                  onChange={(e) => setForm(f => ({ ...f, quantity: e.target.value }))}/>
+              </Grid>
+              <Grid item xs={12} md={2}>
+                <TextField label="UoM" fullWidth value={form.unit_of_measure}
+                  onChange={(e) => setForm(f => ({ ...f, unit_of_measure: e.target.value }))}/>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <TextField select label="Line (optional)" fullWidth value={form.line_id}
+                  onChange={(e) => setForm(f => ({ ...f, line_id: e.target.value }))}>
+                  <MenuItem value="">—</MenuItem>
+                  {lines.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
+                </TextField>
+              </Grid>
+              <Grid item xs={12}>
+                <Button type="submit" disabled={busy}>Add Inventory Item</Button>
+              </Grid>
+            </Grid>
+          </Box>
+        </CardContent>
+      </Card>
 
       {['raw_coil','slit_coil','wip','finished'].map(state => (
-        <section key={state} style={{ marginBottom: 18 }}>
-          <h2 style={{ fontSize: 18, marginBottom: 6 }}>
-            {state.replace('_',' ').toUpperCase()} — Total: {totals[state]}
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
-            <div style={{ fontWeight: 600 }}>Material</div>
-            <div style={{ fontWeight: 600 }}>Qty</div>
-            <div style={{ fontWeight: 600 }}>UoM</div>
-            <div style={{ fontWeight: 600 }}>Last Updated</div>
-            {(grouped[state] || []).map(r => (
-              <div key={r.id} style={{ display: 'contents' }}>
-                <div>{r.material_id}</div>
-                <div>{r.quantity}</div>
-                <div>{r.unit_of_measure}</div>
-                <div>{new Date(r.last_updated).toLocaleString()}</div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <Card key={state}>
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 1 }}>
+              {state.replace('_',' ').toUpperCase()} — Total: {totals[state]}
+            </Typography>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Material</TableCell>
+                  <TableCell>Qty</TableCell>
+                  <TableCell>UoM</TableCell>
+                  <TableCell>Last Updated</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {(grouped[state] || []).map(r => (
+                  <TableRow key={r.id}>
+                    <TableCell>{r.material_id}</TableCell>
+                    <TableCell>{r.quantity}</TableCell>
+                    <TableCell>{r.unit_of_measure}</TableCell>
+                    <TableCell>{new Date(r.last_updated).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       ))}
-    </main>
+
+      <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast(t => ({...t, open: false}))}>
+        <Alert severity={toast.severity} sx={{ width: '100%' }}>{toast.msg}</Alert>
+      </Snackbar>
+    </Stack>
   );
 }
