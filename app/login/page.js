@@ -33,13 +33,29 @@ export default function LoginPage() {
   return (
     <Box sx={{ position: 'relative', minHeight: '100vh', bgcolor: 'grey.900' }}>
       {/* Background image */}
-      <Image
-        src="/hero-zekelman.jpg"
-        alt="Zekelman — steel tubes and manufacturing"
-        fill
-        priority
-        style={{ objectFit: 'cover' }}
-      />
+<Box
+  sx={{
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    overflow: 'hidden',
+    zIndex: 0
+  }}
+>
+  <Image
+    src="/hero-zekelman.jpg"
+    alt="Zekelman — steel tubes and manufacturing"
+    width={1920} // use actual image pixel width
+    height={1080} // use actual image pixel height
+    style={{
+      width: '100%',
+      height: 'auto',
+      display: 'block'
+    }}
+    priority
+  />
+</Box>
 
       {/* Dark gradient overlay for contrast */}
       <Box
