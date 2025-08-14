@@ -7,6 +7,7 @@ export default function Inventory() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [rows, setRows] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     material_id: '',
     material_state: 'raw_coil',
@@ -18,27 +19,38 @@ export default function Inventory() {
 
   useEffect(() => {
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        alert('Auth error: ' + error.message);
+        return;
+      }
       if (!session) return router.replace('/login');
       setReady(true);
-
       await Promise.all([refresh(), loadLines()]);
-    })();
+    })().catch(err => alert('Init error: ' + err.message));
   }, [router]);
 
   async function refresh() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('inventory')
       .select('id, material_id, material_state, quantity, unit_of_measure, last_updated')
       .order('last_updated', { ascending: false });
+    if (error) {
+      alert('Load error: ' + error.message);
+      return;
+    }
     setRows(data ?? []);
   }
 
   async function loadLines() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('lines')
       .select('id, name')
       .order('name', { ascending: true });
+    if (error) {
+      // Not fatal for inventory insert, but helpful to see
+      console.warn('Lines load error:', error.message);
+    }
     setLines(data ?? []);
   }
 
@@ -56,28 +68,51 @@ export default function Inventory() {
 
   async function createItem(e) {
     e.preventDefault();
-    if (!form.material_id || !form.quantity) return;
+    if (!form.material_id) return alert('Material ID is required');
+    if (!form.quantity || isNaN(Number(form.quantity))) return alert('Quantity must be a number');
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('company_id,factory_id')
-      .eq('user_id', session.user.id)
-      .single();
+    setSubmitting(true);
+    try {
+      const { data: { session }, error: sessErr } = await supabase.auth.getSession();
+      if (sessErr) throw new Error('Auth error: ' + sessErr.message);
+      if (!session) {
+        router.replace('/login');
+        return;
+      }
 
-    const { error } = await supabase.from('inventory').insert([{
-      company_id: profile.company_id,
-      factory_id: profile.factory_id,
-      line_id: form.line_id || null,
-      material_id: form.material_id,
-      material_state: form.material_state,
-      quantity: Number(form.quantity),
-      unit_of_measure: form.unit_of_measure
-    }]);
+      const { data: profile, error: profErr } = await supabase
+        .from('profiles')
+        .select('company_id,factory_id')
+        .eq('user_id', session.user.id)
+        .single();
 
-    if (error) return alert(error.message);
-    setForm({ material_id: '', material_state: 'raw_coil', quantity: '', unit_of_measure: 'tons', line_id: '' });
-    await refresh();
+      if (profErr) throw new Error('Profile load error: ' + profErr.message);
+      if (!profile?.company_id || !profile?.factory_id) {
+        throw new Error('Your profile is missing company/factory assignment.');
+      }
+
+      const payload = {
+        company_id: profile.company_id,
+        factory_id: profile.factory_id,
+        line_id: form.line_id || null,
+        material_id: form.material_id.trim(),
+        material_state: form.material_state,        // enum: raw_coil | slit_coil | wip | finished
+        quantity: Number(form.quantity),
+        unit_of_measure: form.unit_of_measure.trim()
+      };
+
+      const { error: insErr } = await supabase.from('inventory').insert([payload]);
+      if (insErr) throw new Error(insErr.message);
+
+      // success
+      setForm({ material_id: '', material_state: 'raw_coil', quantity: '', unit_of_measure: 'tons', line_id: '' });
+      await refresh();
+      alert('Inventory item added.');
+    } catch (err) {
+      alert(err.message || String(err));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (!ready) return <div style={{ padding: 16 }}>Loading…</div>;
@@ -123,7 +158,9 @@ export default function Inventory() {
           <option value="">(optional) Line…</option>
           {lines.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
-        <button type="submit" style={{ gridColumn: 'span 5', padding: '8px 12px' }}>Add Inventory Item</button>
+        <button type="submit" disabled={submitting} style={{ gridColumn: 'span 5', padding: '8px 12px' }}>
+          {submitting ? 'Adding…' : 'Add Inventory Item'}
+        </button>
       </form>
 
       {['raw_coil','slit_coil','wip','finished'].map(state => (
@@ -137,12 +174,12 @@ export default function Inventory() {
             <div style={{ fontWeight: 600 }}>UoM</div>
             <div style={{ fontWeight: 600 }}>Last Updated</div>
             {(grouped[state] || []).map(r => (
-              <>
+              <div key={r.id} style={{ contents: 'contents' }}>
                 <div>{r.material_id}</div>
                 <div>{r.quantity}</div>
                 <div>{r.unit_of_measure}</div>
                 <div>{new Date(r.last_updated).toLocaleString()}</div>
-              </>
+              </div>
             ))}
           </div>
         </section>
