@@ -178,6 +178,14 @@ export default function ClientThemeProvider({ children }) {
               >
                 Dashboard
               </Button>
+<Button
+  component={Link}
+  href="/factory-performance"
+  color={activeKey === 'factory' ? 'primary' : 'inherit'}
+>
+  Factory Performance
+</Button>
+
               <Button
                 component={Link}
                 href="/work-requests"
