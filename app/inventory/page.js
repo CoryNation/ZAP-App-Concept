@@ -1,13 +1,15 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+// NOTE: relative import (no "@/")
+import { supabase } from '../../lib/supabaseClient';
 
 export default function Inventory() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [rows, setRows] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [lines, setLines] = useState([]);
   const [form, setForm] = useState({
     material_id: '',
     material_state: 'raw_coil',
@@ -15,15 +17,11 @@ export default function Inventory() {
     unit_of_measure: 'tons',
     line_id: ''
   });
-  const [lines, setLines] = useState([]);
 
   useEffect(() => {
     (async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        alert('Auth error: ' + error.message);
-        return;
-      }
+      if (error) return alert('Auth error: ' + error.message);
       if (!session) return router.replace('/login');
       setReady(true);
       await Promise.all([refresh(), loadLines()]);
@@ -35,10 +33,7 @@ export default function Inventory() {
       .from('inventory')
       .select('id, material_id, material_state, quantity, unit_of_measure, last_updated')
       .order('last_updated', { ascending: false });
-    if (error) {
-      alert('Load error: ' + error.message);
-      return;
-    }
+    if (error) return alert('Load error: ' + error.message);
     setRows(data ?? []);
   }
 
@@ -47,10 +42,7 @@ export default function Inventory() {
       .from('lines')
       .select('id, name')
       .order('name', { ascending: true });
-    if (error) {
-      // Not fatal for inventory insert, but helpful to see
-      console.warn('Lines load error:', error.message);
-    }
+    if (error) console.warn('Lines load error:', error.message);
     setLines(data ?? []);
   }
 
@@ -75,18 +67,14 @@ export default function Inventory() {
     try {
       const { data: { session }, error: sessErr } = await supabase.auth.getSession();
       if (sessErr) throw new Error('Auth error: ' + sessErr.message);
-      if (!session) {
-        router.replace('/login');
-        return;
-      }
+      if (!session) return router.replace('/login');
 
       const { data: profile, error: profErr } = await supabase
         .from('profiles')
         .select('company_id,factory_id')
         .eq('user_id', session.user.id)
         .single();
-
-      if (profErr) throw new Error('Profile load error: ' + profErr.message);
+      if (profErr) throw new Error('Profile error: ' + profErr.message);
       if (!profile?.company_id || !profile?.factory_id) {
         throw new Error('Your profile is missing company/factory assignment.');
       }
@@ -96,7 +84,7 @@ export default function Inventory() {
         factory_id: profile.factory_id,
         line_id: form.line_id || null,
         material_id: form.material_id.trim(),
-        material_state: form.material_state,        // enum: raw_coil | slit_coil | wip | finished
+        material_state: form.material_state,
         quantity: Number(form.quantity),
         unit_of_measure: form.unit_of_measure.trim()
       };
@@ -104,7 +92,6 @@ export default function Inventory() {
       const { error: insErr } = await supabase.from('inventory').insert([payload]);
       if (insErr) throw new Error(insErr.message);
 
-      // success
       setForm({ material_id: '', material_state: 'raw_coil', quantity: '', unit_of_measure: 'tons', line_id: '' });
       await refresh();
       alert('Inventory item added.');
@@ -174,7 +161,7 @@ export default function Inventory() {
             <div style={{ fontWeight: 600 }}>UoM</div>
             <div style={{ fontWeight: 600 }}>Last Updated</div>
             {(grouped[state] || []).map(r => (
-              <div key={r.id} style={{ contents: 'contents' }}>
+              <div key={r.id} style={{ display: 'contents' }}>
                 <div>{r.material_id}</div>
                 <div>{r.quantity}</div>
                 <div>{r.unit_of_measure}</div>
