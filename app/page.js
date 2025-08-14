@@ -1,15 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
-
-<nav style={{ margin: '12px 0' }}>
-  <a href="/me" style={{ marginRight: 12 }}>My Profile</a>
-  <a href="/work-requests" style={{ marginRight: 12 }}>Work Requests</a>
-  <a href="/inventory" style={{ marginRight: 12 }}>Inventory</a>
-  <a href="/greasy-twin">Greasy Twin</a>
-</nav>
-
+// NOTE: relative import (no "@/")
+import { supabase } from '../lib/supabaseClient';
 
 export default function Home() {
   const router = useRouter();
@@ -17,13 +10,16 @@ export default function Home() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.replace('/login');
-      else {
-        setEmail(data.session.user.email ?? null);
-        setReady(true);
+    (async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        alert('Auth error: ' + error.message);
+        return;
       }
-    });
+      if (!data.session) return router.replace('/login');
+      setEmail(data.session.user.email ?? null);
+      setReady(true);
+    })();
   }, [router]);
 
   const signOut = async () => {
@@ -53,10 +49,11 @@ export default function Home() {
       <nav style={{ margin: '12px 0' }}>
         <a href="/me" style={{ marginRight: 12 }}>My Profile</a>
         <a href="/work-requests" style={{ marginRight: 12 }}>Work Requests</a>
-        <a href="/inventory">Inventory</a>
+        <a href="/inventory" style={{ marginRight: 12 }}>Inventory</a>
+        <a href="/greasy-twin">Greasy Twin</a>
       </nav>
 
-      {/* AI Insight card (non-functional mock to demo vision) */}
+      {/* AI Insight card (demo only) */}
       <section style={{ border: '1px solid #ddd', padding: 12, marginTop: 12, maxWidth: 640 }}>
         <div style={{ fontWeight: 700, marginBottom: 6 }}>AI Insight — Predictive Production (Demo)</div>
         <div style={{ fontSize: 14, marginBottom: 8 }}>
@@ -65,7 +62,7 @@ export default function Home() {
         <ul style={{ margin: 0, paddingLeft: 18 }}>
           <li>Top driver: Planned maintenance on Line A (Sat/Sun)</li>
           <li>Watchlist: Weld spatter recurrence risk on M‑101</li>
-          <li>Suggestion: Pre-stage slit coil for Mon–Wed demand</li>
+          <li>Suggestion: Pre‑stage slit coil for Mon–Wed demand</li>
         </ul>
       </section>
 
