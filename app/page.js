@@ -3,6 +3,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
+<nav style={{ margin: '12px 0' }}>
+  <a href="/me" style={{ marginRight: 12 }}>My Profile</a>
+  <a href="/work-requests" style={{ marginRight: 12 }}>Work Requests</a>
+  <a href="/inventory" style={{ marginRight: 12 }}>Inventory</a>
+  <a href="/greasy-twin">Greasy Twin</a>
+</nav>
+
+
 export default function Home() {
   const router = useRouter();
   const [email, setEmail] = useState(null);
