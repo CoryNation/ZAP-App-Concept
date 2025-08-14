@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
 import {
   Box, Stack, Typography, Card, CardContent, Grid, TextField, MenuItem,
   Button, Table, TableHead, TableRow, TableCell, TableBody, Chip,
-  Snackbar, Alert
+  Snackbar, Alert, Tooltip
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
+/* ------------ helpers ------------ */
 function makeToken() {
-  // Robust token generator for browsers (falls back if crypto unavailable)
+  // robust token for browsers; falls back if crypto not present
   if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
     return Array.from(window.crypto.getRandomValues(new Uint8Array(16)))
       .map(b => b.toString(16).padStart(2, '0')).join('');
@@ -23,32 +24,32 @@ function makeToken() {
 export default function AdminUsersPage() {
   const router = useRouter();
 
-  // Me/admin
+  // me/admin
   const [ready, setReady] = useState(false);
   const [me, setMe] = useState(null); // { user_id, company_id, factory_id, role }
 
-  // Data
-  const [users, setUsers] = useState([]);       // from profiles + users_public
-  const [invites, setInvites] = useState([]);   // from org_invites
-  const [requests, setRequests] = useState([]); // from org_join_requests
+  // data
+  const [users, setUsers] = useState([]);
+  const [invites, setInvites] = useState([]);
+  const [requests, setRequests] = useState([]);
 
-  // Invite form lookups
+  // lookups for invite
   const [factories, setFactories] = useState([]);
   const [lines, setLines] = useState([]);
 
-  // Invite form state
-  const [inv, setInv] = useState({
-    email: '',
-    role: 'operator',
-    factory_id: '',
-    line_id: ''
-  });
+  // invite form
+  const [inv, setInv] = useState({ email: '', role: 'operator', factory_id: '', line_id: '' });
   const [creating, setCreating] = useState(false);
 
-  // UI toast
+  // shareable join link (optional scoping)
+  const [jlFactoryId, setJlFactoryId] = useState('');
+  const [jlLineId, setJlLineId] = useState('');
+  const [jlLines, setJlLines] = useState([]);
+
+  // ui toast
   const [toast, setToast] = useState({ open: false, severity: 'success', msg: '' });
 
-  // ---------- Boot: auth + admin guard ----------
+  /* ---------- boot: auth + admin guard ---------- */
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -59,79 +60,54 @@ export default function AdminUsersPage() {
         .select('user_id, company_id, factory_id, role')
         .eq('user_id', session.user.id)
         .single();
-      if (pErr) {
-        alert('Profile error: ' + pErr.message);
-        return router.replace('/');
-      }
-      if ((myp?.role || '') !== 'admin') {
-        alert('Admins only');
-        return router.replace('/');
-      }
+
+      if (pErr) { alert('Profile error: ' + pErr.message); return router.replace('/'); }
+      if ((myp?.role || '') !== 'admin') { alert('Admins only'); return router.replace('/'); }
 
       setMe(myp);
       setReady(true);
     })();
   }, [router]);
 
-  // ---------- Load data once ready ----------
-  useEffect(() => {
-    if (!ready) return;
-    loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  /* ---------- load all ---------- */
+  useEffect(() => { if (ready) loadAll(); }, [ready]);
 
   async function loadAll() {
-    // Users: profiles list
+    // users (profiles)
     const { data: pf, error: pfErr } = await supabase
       .from('profiles')
       .select('user_id, company_id, factory_id, line_id, role')
       .order('role', { ascending: false });
-    if (pfErr) {
-      setToast({ open: true, severity: 'error', msg: pfErr.message });
-      return;
-    }
+    if (pfErr) return setToast({ open: true, severity: 'error', msg: pfErr.message });
 
-    // Emails via users_public view (create it if you haven't)
-    //   create or replace view public.users_public as select id, email from auth.users;
-    //   grant select on public.users_public to authenticated;
+    // emails via public.users_public view
     let emails = new Map();
     const ids = (pf || []).map(p => p.user_id);
     if (ids.length) {
-      const { data: us, error: uErr } = await supabase
-        .from('users_public')
-        .select('id,email')
-        .in('id', ids);
-      if (!uErr && us) emails = new Map(us.map(u => [u.id, u.email]));
+      const { data: us } = await supabase.from('users_public').select('id,email').in('id', ids);
+      if (us) emails = new Map(us.map(u => [u.id, u.email]));
     }
+    setUsers((pf || []).map(p => ({ ...p, email: emails.get(p.user_id) || '(email hidden)' })));
 
-    setUsers((pf || []).map(p => ({
-      ...p,
-      email: emails.get(p.user_id) || '(email hidden)'
-    })));
-
-    // Factories (RLS will scope to company)
+    // factories
     const { data: fs } = await supabase.from('factories').select('id,name').order('name');
     setFactories(fs || []);
 
-    // Lines for the currently chosen factory in invite form
+    // lines for invite form
     if (inv.factory_id) {
-      const { data: ls } = await supabase
-        .from('lines').select('id,name,factory_id')
-        .eq('factory_id', inv.factory_id)
-        .order('name');
+      const { data: ls } = await supabase.from('lines')
+        .select('id,name,factory_id').eq('factory_id', inv.factory_id).order('name');
       setLines(ls || []);
-    } else {
-      setLines([]);
-    }
+    } else setLines([]);
 
-    // Invites
+    // invites
     const { data: iv } = await supabase
       .from('org_invites')
       .select('id,email,role,token,status,factory_id,line_id,created_at,accepted_at,invited_by')
       .order('created_at', { ascending: false });
     setInvites(iv || []);
 
-    // Join requests
+    // join requests
     const { data: rq } = await supabase
       .from('org_join_requests')
       .select('id,email,role,note,status,created_at')
@@ -139,19 +115,42 @@ export default function AdminUsersPage() {
     setRequests(rq || []);
   }
 
+  /* ---------- shareable join link controls ---------- */
+  useEffect(() => {
+    (async () => {
+      if (!jlFactoryId) { setJlLines([]); setJlLineId(''); return; }
+      const { data: ls } = await supabase
+        .from('lines').select('id,name,factory_id').eq('factory_id', jlFactoryId).order('name');
+      setJlLines(ls || []);
+    })();
+  }, [jlFactoryId]);
+
+  const joinUrl = useMemo(() => {
+    if (typeof window === 'undefined' || !me?.company_id) return '';
+    const origin = window.location.origin;
+    const params = new URLSearchParams({ company: me.company_id });
+    if (jlFactoryId) params.set('factory', jlFactoryId);
+    if (jlLineId) params.set('line', jlLineId);
+    return `${origin}/join?${params.toString()}`;
+  }, [me?.company_id, jlFactoryId, jlLineId]);
+
+  const joinQrSrc = useMemo(() => {
+    // uses a public QR PNG service to avoid adding deps
+    if (!joinUrl) return '';
+    const sz = 180;
+    return `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(joinUrl)}&size=${sz}x${sz}&margin=0`;
+  }, [joinUrl]);
+
+  /* ---------- actions ---------- */
   function copy(text) {
     if (typeof window === 'undefined') return;
     navigator.clipboard.writeText(text);
     setToast({ open: true, severity: 'success', msg: 'Copied to clipboard' });
   }
 
-  // ---------- Actions ----------
   async function createInvite(e) {
     e.preventDefault();
-    if (!inv.email) {
-      setToast({ open: true, severity: 'warning', msg: 'Email is required' });
-      return;
-    }
+    if (!inv.email) return setToast({ open: true, severity: 'warning', msg: 'Email is required' });
     setCreating(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -165,7 +164,7 @@ export default function AdminUsersPage() {
         email: inv.email.trim().toLowerCase(),
         role: inv.role,
         token,
-        invited_by: session.user.id // DB default should also set this; explicit here for clarity
+        invited_by: session.user.id  // DB default should also populate this
       };
 
       const { error } = await supabase.from('org_invites').insert([payload]);
@@ -185,15 +184,9 @@ export default function AdminUsersPage() {
   }
 
   async function cancelInvite(id) {
-    const { error } = await supabase
-      .from('org_invites')
-      .update({ status: 'cancelled' })
-      .eq('id', id);
+    const { error } = await supabase.from('org_invites').update({ status: 'cancelled' }).eq('id', id);
     if (error) setToast({ open: true, severity: 'error', msg: error.message });
-    else {
-      setToast({ open: true, severity: 'success', msg: 'Invite cancelled' });
-      await loadAll();
-    }
+    else { setToast({ open: true, severity: 'success', msg: 'Invite cancelled' }); await loadAll(); }
   }
 
   async function approveRequest(id) {
@@ -211,27 +204,18 @@ export default function AdminUsersPage() {
   }
 
   async function rejectRequest(id) {
-    const { error } = await supabase
-      .from('org_join_requests')
-      .update({ status: 'rejected' })
-      .eq('id', id);
+    const { error } = await supabase.from('org_join_requests').update({ status: 'rejected' }).eq('id', id);
     if (error) setToast({ open: true, severity: 'error', msg: error.message });
-    else {
-      setToast({ open: true, severity: 'success', msg: 'Request rejected' });
-      await loadAll();
-    }
+    else { setToast({ open: true, severity: 'success', msg: 'Request rejected' }); await loadAll(); }
   }
 
   async function onFactoryChange(e) {
     const factory_id = e.target.value || '';
     setInv(v => ({ ...v, factory_id, line_id: '' }));
     if (factory_id) {
-      const { data: ls } = await supabase
-        .from('lines').select('id,name,factory_id').eq('factory_id', factory_id).order('name');
+      const { data: ls } = await supabase.from('lines').select('id,name,factory_id').eq('factory_id', factory_id).order('name');
       setLines(ls || []);
-    } else {
-      setLines([]);
-    }
+    } else setLines([]);
   }
 
   if (!ready) return <div>Loading…</div>;
@@ -240,7 +224,83 @@ export default function AdminUsersPage() {
     <Stack spacing={2}>
       <Typography variant="h5">Organization Users</Typography>
 
-      {/* Invite form */}
+      {/* Shareable Join Link */}
+      <Card>
+        <CardContent>
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Shareable Join Link (Public Request → Admin Approval)
+          </Typography>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={4}>
+              <TextField
+                label="Factory (optional)"
+                select
+                fullWidth
+                value={jlFactoryId}
+                onChange={(e)=>setJlFactoryId(e.target.value)}
+              >
+                <MenuItem value="">(All)</MenuItem>
+                {factories.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <TextField
+                label="Line (optional)"
+                select
+                fullWidth
+                value={jlLineId}
+                onChange={(e)=>setJlLineId(e.target.value)}
+                disabled={!jlFactoryId}
+              >
+                <MenuItem value="">(All)</MenuItem>
+                {jlLines.map(l => <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>)}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} md={8}>
+              <Box
+                sx={{
+                  p: 1.5, bgcolor: 'grey.50', borderRadius: 1, border: '1px solid', borderColor: 'divider',
+                  display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap'
+                }}
+              >
+                <Typography variant="body2" sx={{ wordBreak: 'break-all', flex: 1 }}>
+                  {joinUrl || '—'}
+                </Typography>
+                <Button
+                  variant="outlined"
+                  onClick={() => { if (joinUrl) copy(joinUrl); }}
+                >
+                  Copy Join Link
+                </Button>
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                Share this broadly. Anyone can submit a request at that URL; you’ll approve them below.
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Box
+                sx={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1, bgcolor: 'white'
+                }}
+              >
+                {joinQrSrc ? (
+                  <Tooltip title="Scan to open join page">
+                    {/* External QR image service: no extra npm dependency */}
+                    <img src={joinQrSrc} alt="Join link QR" width={180} height={180} />
+                  </Tooltip>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">QR will appear when a link is available.</Typography>
+                )}
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Invite a user (email-specific) */}
       <Card>
         <CardContent>
           <Typography variant="subtitle1" sx={{ mb: 2 }}>Invite a user</Typography>
@@ -301,7 +361,7 @@ export default function AdminUsersPage() {
         </CardContent>
       </Card>
 
-      {/* Users table */}
+      {/* Users */}
       <Card>
         <CardContent>
           <Typography variant="subtitle1" sx={{ mb: 1 }}>Users</Typography>
