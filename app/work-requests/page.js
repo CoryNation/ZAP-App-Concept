@@ -6,13 +6,15 @@ import {
   Box, Stack, Grid, Card, CardContent, Typography, Chip, Divider,
   Table, TableHead, TableRow, TableCell, TableBody, Tooltip,
   Button, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, MenuItem, Alert, Snackbar
+  TextField, MenuItem, Alert, Snackbar, FormControl, InputLabel, Select,
+  Checkbox, FormControlLabel, FormGroup
 } from '@mui/material';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip,
   Legend, CartesianGrid, ResponsiveContainer
 } from 'recharts';
 import AddIcon from '@mui/icons-material/Add';
+import FilterListIcon from '@mui/icons-material/FilterList';
 
 import { supabase } from '../../lib/supabaseClient';
 
@@ -80,6 +82,13 @@ export default function WorkRequestsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
+  // Time filter state
+  const [timeFilter, setTimeFilter] = useState('45'); // Default to 45 days
+  const [customDateRange, setCustomDateRange] = useState({
+    start: '',
+    end: ''
+  });
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -92,7 +101,11 @@ export default function WorkRequestsPage() {
     quick_pick_reason: '',
     quick_pick_code: '',
     assigned_technician_name: '',
-    estimated_completion_time: ''
+    estimated_completion_time: '',
+    impact_performance: false,
+    impact_flow: false,
+    impact_quality: false,
+    impact_shutdown: false
   });
 
   const resetForm = () => {
@@ -108,7 +121,11 @@ export default function WorkRequestsPage() {
       quick_pick_reason: '',
       quick_pick_code: '',
       assigned_technician_name: '',
-      estimated_completion_time: ''
+      estimated_completion_time: '',
+      impact_performance: false,
+      impact_flow: false,
+      impact_quality: false,
+      impact_shutdown: false
     });
   };
 
@@ -191,10 +208,20 @@ export default function WorkRequestsPage() {
     return { totalOpen, highPriority, old45 };
   }, [rows]);
 
-  // Chart data: last 30 days, counts per status/day
+  // Chart data: counts per status/day based on selected time filter
   const dailySeries = useMemo(() => {
     const end = new Date(); end.setHours(0,0,0,0);
-    const start = new Date(end - 29 * 86400000); // 30-day window
+    let start;
+    
+    if (timeFilter === 'custom') {
+      if (!customDateRange.start || !customDateRange.end) return [];
+      start = new Date(customDateRange.start);
+      end = new Date(customDateRange.end);
+    } else {
+      const days = parseInt(timeFilter);
+      start = new Date(end - (days - 1) * 86400000);
+    }
+    
     const labels = [];
     for (let d = new Date(start); d <= end; d = new Date(+d + 86400000)) {
       labels.push(new Date(d));
@@ -214,7 +241,7 @@ export default function WorkRequestsPage() {
       else byDay[i].open += 1;
     });
     return byDay;
-  }, [rows]);
+  }, [rows, timeFilter, customDateRange]);
 
   // Insights
   const insights = useMemo(() => buildInsights(rows, dailySeries), [rows, dailySeries]);
@@ -247,7 +274,46 @@ export default function WorkRequestsPage() {
         <Grid item xs={12} md={9}>
           <Card>
             <CardContent>
-              <Typography variant="subtitle1" sx={{ mb: 1 }}>Requests by Status (Last 30 Days)</Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                <Typography variant="subtitle1">
+                  Requests by Status ({timeFilter === 'custom' ? 'Custom Range' : `Last ${timeFilter} Days`})
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>Time Filter</InputLabel>
+                    <Select
+                      value={timeFilter}
+                      label="Time Filter"
+                      onChange={(e) => setTimeFilter(e.target.value)}
+                    >
+                      <MenuItem value="30">30 Days</MenuItem>
+                      <MenuItem value="45">45 Days</MenuItem>
+                      <MenuItem value="90">90 Days</MenuItem>
+                      <MenuItem value="custom">Custom Range</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Stack>
+              </Stack>
+              {timeFilter === 'custom' && (
+                <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                  <TextField
+                    size="small"
+                    type="date"
+                    label="Start Date"
+                    value={customDateRange.start}
+                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, start: e.target.value }))}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    size="small"
+                    type="date"
+                    label="End Date"
+                    value={customDateRange.end}
+                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, end: e.target.value }))}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Stack>
+              )}
               <Box sx={{ height: 320 }}>
                 <ResponsiveContainer>
                   <BarChart data={dailySeries} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
@@ -473,6 +539,58 @@ export default function WorkRequestsPage() {
               onChange={(e) => setFormData(prev => ({ ...prev, estimated_completion_time: e.target.value }))}
               InputLabelProps={{ shrink: true }}
             />
+            
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>Impact Areas</Typography>
+              <FormGroup>
+                <Grid container spacing={1}>
+                  <Grid item xs={12} sm={6}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.impact_performance}
+                          onChange={(e) => setFormData(prev => ({ ...prev, impact_performance: e.target.checked }))}
+                        />
+                      }
+                      label="Performance Impact"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.impact_flow}
+                          onChange={(e) => setFormData(prev => ({ ...prev, impact_flow: e.target.checked }))}
+                        />
+                      }
+                      label="Flow Impact"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.impact_quality}
+                          onChange={(e) => setFormData(prev => ({ ...prev, impact_quality: e.target.checked }))}
+                        />
+                      }
+                      label="Quality Impact"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.impact_shutdown}
+                          onChange={(e) => setFormData(prev => ({ ...prev, impact_shutdown: e.target.checked }))}
+                        />
+                      }
+                      label="Shutdown Impact"
+                    />
+                  </Grid>
+                </Grid>
+              </FormGroup>
+            </Box>
           </Stack>
         </DialogContent>
         <DialogActions>
