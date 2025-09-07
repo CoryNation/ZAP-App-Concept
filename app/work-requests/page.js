@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip,
-  Legend, CartesianGrid, ResponsiveContainer
+  Legend, CartesianGrid, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
 import AddIcon from '@mui/icons-material/Add';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -23,12 +23,13 @@ import { supabase } from '../../lib/supabaseClient';
    ------------------------------------------------------------------------- */
 
 function makeStatusPalette(theme) {
-  // Friendly MD3 palette; avoids red so errors keep red authority.
+  // Friendly MD3 palette; red reserved for aging items
   return {
     open:        { name: 'Open',        color: '#1e88e5' }, // blue
     in_progress: { name: 'In‑Progress', color: '#43a047' }, // green
     completed:   { name: 'Completed',   color: '#8e24aa' }, // purple
     on_hold:     { name: 'On‑Hold',     color: '#fb8c00' }, // orange
+    aging:       { name: 'Aging',       color: '#e53935' }, // red
     paused:      { name: 'Paused',      color: '#fb8c00' }, // alias to on_hold
     hold:        { name: 'On‑Hold',     color: '#fb8c00' }, // alias
     blocked:     { name: 'Blocked',     color: '#fb8c00' }, // alias
@@ -208,7 +209,7 @@ export default function WorkRequestsPage() {
     return { totalOpen, highPriority, old45 };
   }, [rows]);
 
-  // Chart data: counts per status/day based on selected time filter
+  // Chart data: work request demand per day (cumulative state)
   const dailySeries = useMemo(() => {
     let end = new Date(); end.setHours(0,0,0,0);
     let start;
@@ -222,25 +223,62 @@ export default function WorkRequestsPage() {
       start = new Date(end - (days - 1) * 86400000);
     }
     
-    const labels = [];
+    // Generate array of days
+    const days = [];
     for (let d = new Date(start); d <= end; d = new Date(+d + 86400000)) {
-      labels.push(new Date(d));
+      days.push(new Date(d));
     }
-    const byDay = labels.map(d => {
-      const key = d.toISOString().slice(0,10);
-      const bucket = { day: fmtDate(d), _key: key, open: 0, in_progress: 0, completed: 0, on_hold: 0 };
-      return bucket;
+    
+    // For each day, calculate the state of all work requests
+    return days.map(currentDay => {
+      const dayKey = currentDay.toISOString().slice(0,10);
+      const dayLabel = fmtDate(currentDay);
+      
+      let open = 0, in_progress = 0, on_hold = 0, completed = 0, aging = 0;
+      
+      rows.forEach(request => {
+        const createdDate = new Date(request.created_at);
+        const requestAge = daysBetween(request.created_at, currentDay);
+        
+        // Only count requests that existed on this day
+        if (createdDate <= currentDay) {
+          const status = normStatus(request.status);
+          
+          // Check if this request is aging (>45 days old on this day)
+          if (requestAge > 45 && (status === 'open' || status === 'in_progress' || status === 'on_hold')) {
+            aging += 1;
+          } else {
+            // Count by status
+            switch (status) {
+              case 'open':
+                open += 1;
+                break;
+              case 'in_progress':
+                in_progress += 1;
+                break;
+              case 'on_hold':
+                on_hold += 1;
+                break;
+              case 'completed':
+                completed += 1;
+                break;
+              default:
+                open += 1;
+            }
+          }
+        }
+      });
+      
+      return {
+        day: dayLabel,
+        _key: dayKey,
+        open,
+        in_progress,
+        on_hold,
+        completed,
+        aging
+      };
     });
-    const index = new Map(byDay.map((b, i) => [b._key, i]));
-    rows.forEach(r => {
-      const key = new Date(r.created_at).toISOString().slice(0,10);
-      const i = index.get(key);
-      if (i == null) return;
-      const s = normStatus(r.status);
-      if (byDay[i][s] != null) byDay[i][s] += 1;
-      else byDay[i].open += 1;
-    });
-    return byDay;
   }, [rows, timeFilter, customDateRange]);
 
   // Insights
@@ -253,6 +291,7 @@ export default function WorkRequestsPage() {
       in_progress: STATUS.in_progress.color,
       completed: STATUS.completed.color,
       on_hold: STATUS.on_hold.color,
+      aging: STATUS.aging.color,
     }
   };
 
@@ -316,17 +355,53 @@ export default function WorkRequestsPage() {
               )}
               <Box sx={{ height: 320 }}>
                 <ResponsiveContainer>
-                  <BarChart data={dailySeries} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                  <AreaChart data={dailySeries} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                     <CartesianGrid stroke={COLORS.grid} strokeDasharray="3 3" />
                     <XAxis dataKey="day" />
                     <YAxis allowDecimals={false} />
                     <RTooltip />
                     <Legend />
-                    <Bar dataKey="open"        name="Open"        stackId="s" fill={COLORS.statuses.open} />
-                    <Bar dataKey="in_progress" name="In‑Progress" stackId="s" fill={COLORS.statuses.in_progress} />
-                    <Bar dataKey="completed"   name="Completed"   stackId="s" fill={COLORS.statuses.completed} />
-                    <Bar dataKey="on_hold"     name="On‑Hold"     stackId="s" fill={COLORS.statuses.on_hold} />
-                  </BarChart>
+                    <Area 
+                      type="monotone" 
+                      dataKey="aging" 
+                      stackId="1" 
+                      stroke={COLORS.statuses.aging} 
+                      fill={COLORS.statuses.aging} 
+                      name="Aging" 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="on_hold" 
+                      stackId="1" 
+                      stroke={COLORS.statuses.on_hold} 
+                      fill={COLORS.statuses.on_hold} 
+                      name="On-Hold" 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="in_progress" 
+                      stackId="1" 
+                      stroke={COLORS.statuses.in_progress} 
+                      fill={COLORS.statuses.in_progress} 
+                      name="In-Progress" 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="open" 
+                      stackId="1" 
+                      stroke={COLORS.statuses.open} 
+                      fill={COLORS.statuses.open} 
+                      name="Open" 
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="completed" 
+                      stackId="2" 
+                      stroke={COLORS.statuses.completed} 
+                      fill={COLORS.statuses.completed} 
+                      name="Completed (Cumulative)" 
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               </Box>
             </CardContent>
@@ -338,7 +413,7 @@ export default function WorkRequestsPage() {
           <Stack spacing={1} sx={{ height: '100%' }}>
             <ChipBox label="Total Open" value={metrics.totalOpen} color={COLORS.statuses.open} />
             <ChipBox label="High Priority" value={metrics.highPriority} color={COLORS.statuses.in_progress} />
-            <ChipBox label="> 45 Days Open" value={metrics.old45} color={COLORS.statuses.on_hold} />
+            <ChipBox label="> 45 Days Open" value={metrics.old45} color={COLORS.statuses.aging} />
           </Stack>
         </Grid>
       </Grid>
