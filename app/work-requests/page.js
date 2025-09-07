@@ -4,12 +4,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import {
   Box, Stack, Grid, Card, CardContent, Typography, Chip, Divider,
-  Table, TableHead, TableRow, TableCell, TableBody, Tooltip
+  Table, TableHead, TableRow, TableCell, TableBody, Tooltip,
+  Button, Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, MenuItem, Alert, Snackbar
 } from '@mui/material';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip,
   Legend, CartesianGrid, ResponsiveContainer
 } from 'recharts';
+import AddIcon from '@mui/icons-material/Add';
 
 import { supabase } from '../../lib/supabaseClient';
 
@@ -71,6 +74,77 @@ export default function WorkRequestsPage() {
 
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]); // work_requests rows
+
+  // Create work request state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    priority: 'medium',
+    category: '',
+    machine_id: '',
+    line_id: '',
+    factory_id: '',
+    company_id: '',
+    quick_pick_reason: '',
+    quick_pick_code: '',
+    assigned_technician_name: '',
+    estimated_completion_time: ''
+  });
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      priority: 'medium',
+      category: '',
+      machine_id: '',
+      line_id: '',
+      factory_id: '',
+      company_id: '',
+      quick_pick_reason: '',
+      quick_pick_code: '',
+      assigned_technician_name: '',
+      estimated_completion_time: ''
+    });
+  };
+
+  const handleCreateRequest = async () => {
+    if (!formData.title.trim()) {
+      setNotification({ open: true, message: 'Please enter a title', severity: 'error' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const newRequest = {
+        ...formData,
+        status: 'open',
+        created_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase
+        .from('work_requests')
+        .insert([newRequest])
+        .select();
+
+      if (error) throw error;
+
+      // Update local state with new request
+      setRows(prev => [...prev, data[0]]);
+      setCreateDialogOpen(false);
+      resetForm();
+      setNotification({ open: true, message: 'Work request created successfully!', severity: 'success' });
+    } catch (error) {
+      console.error('Error creating work request:', error);
+      setNotification({ open: true, message: 'Failed to create work request', severity: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -157,7 +231,16 @@ export default function WorkRequestsPage() {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">Work Requests</Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="h5">Work Requests</Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setCreateDialogOpen(true)}
+        >
+          Create New Request
+        </Button>
+      </Stack>
 
       {/* Chart + KPI chips row */}
       <Grid container spacing={2}>
@@ -256,6 +339,170 @@ export default function WorkRequestsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Create Work Request Dialog */}
+      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Create New Work Request</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              fullWidth
+              required
+              label="Title"
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Brief description of the issue or request"
+            />
+            
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Detailed description of the work request"
+            />
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Priority"
+                  value={formData.priority}
+                  onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                >
+                  <MenuItem value="low">Low</MenuItem>
+                  <MenuItem value="medium">Medium</MenuItem>
+                  <MenuItem value="high">High</MenuItem>
+                  <MenuItem value="critical">Critical</MenuItem>
+                </TextField>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Category"
+                  value={formData.category}
+                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                  placeholder="e.g., Mechanical, Electrical, Safety"
+                />
+              </Grid>
+            </Grid>
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Machine ID"
+                  value={formData.machine_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, machine_id: e.target.value }))}
+                  placeholder="Machine identifier"
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Line ID"
+                  value={formData.line_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, line_id: e.target.value }))}
+                  placeholder="Production line identifier"
+                />
+              </Grid>
+            </Grid>
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Factory ID"
+                  value={formData.factory_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, factory_id: e.target.value }))}
+                  placeholder="Factory identifier"
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Company ID"
+                  value={formData.company_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, company_id: e.target.value }))}
+                  placeholder="Company identifier"
+                />
+              </Grid>
+            </Grid>
+            
+            <TextField
+              fullWidth
+              label="Quick Pick Reason"
+              value={formData.quick_pick_reason}
+              onChange={(e) => setFormData(prev => ({ ...prev, quick_pick_reason: e.target.value }))}
+              placeholder="Reason for quick resolution if applicable"
+            />
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Quick Pick Code"
+                  value={formData.quick_pick_code}
+                  onChange={(e) => setFormData(prev => ({ ...prev, quick_pick_code: e.target.value }))}
+                  placeholder="Quick resolution code"
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Assigned Technician"
+                  value={formData.assigned_technician_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, assigned_technician_name: e.target.value }))}
+                  placeholder="Technician name"
+                />
+              </Grid>
+            </Grid>
+            
+            <TextField
+              fullWidth
+              type="datetime-local"
+              label="Estimated Completion Time"
+              value={formData.estimated_completion_time}
+              onChange={(e) => setFormData(prev => ({ ...prev, estimated_completion_time: e.target.value }))}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setCreateDialogOpen(false); resetForm(); }}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleCreateRequest} 
+            variant="contained"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Creating...' : 'Create Request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+      >
+        <Alert 
+          onClose={() => setNotification(prev => ({ ...prev, open: false }))} 
+          severity={notification.severity}
+          sx={{ width: '100%' }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Stack>
   );
 }
