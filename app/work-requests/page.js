@@ -210,7 +210,7 @@ export default function WorkRequestsPage() {
 
   // Chart data: counts per status/day based on selected time filter
   const dailySeries = useMemo(() => {
-    const end = new Date(); end.setHours(0,0,0,0);
+    let end = new Date(); end.setHours(0,0,0,0);
     let start;
     
     if (timeFilter === 'custom') {
