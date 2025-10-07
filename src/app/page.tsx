@@ -3,19 +3,23 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { useScope } from '@/lib/scope';
+import { useGlobalFilters } from '@/src/lib/state/globalFilters';
 import {
-  Stack, Typography, Card, CardContent, Chip, Box, Grid, Paper, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions
+  Stack, Typography, Grid, Paper, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
-import InsightsIcon from '@mui/icons-material/Insights';
 import EditIcon from '@mui/icons-material/Edit';
 import WorkIcon from '@mui/icons-material/Work';
+import AiInsightCard from '@/src/components/common/AiInsightCard';
 
 export default function Home() {
   const router = useRouter();
-  const [scope] = useScope();
-  const [email, setEmail] = useState(null);
+  const { factoryId, lineId, timeRange } = useGlobalFilters();
+  const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  
+  // Factory and line names for display
+  const [factories, setFactories] = useState<Array<{ id: string; name: string }>>([]);
+  const [lines, setLines] = useState<Array<{ id: string; name: string; factory_id: string }>>([]);
   
   // Role & Responsibilities state
   const [userRole, setUserRole] = useState('Global Operations Manager');
@@ -31,15 +35,56 @@ export default function Home() {
       if (error) return alert('Auth error: ' + error.message);
       if (!data.session) return router.replace('/login');
       setEmail(data.session.user.email ?? null);
+      
+      // Load factories and lines for scope display
+      const { data: fs } = await supabase
+        .from('factories')
+        .select('id,name')
+        .order('name');
+      setFactories(fs || []);
+      
+      const { data: ls } = await supabase
+        .from('lines')
+        .select('id,name,factory_id')
+        .order('name');
+      setLines(ls || []);
+      
       setReady(true);
     })();
   }, [router]);
 
   const scopeText = useMemo(() => {
-    if (!scope.factoryId && !scope.lineId) return 'All factories/lines';
-    if (scope.factoryId && !scope.lineId) return 'Filtered by Factory';
-    return 'Filtered by Factory & Line';
-  }, [scope]);
+    const parts: string[] = [];
+    
+    if (factoryId) {
+      const factory = factories.find(f => f.id === factoryId);
+      parts.push(`Factory: ${factory?.name || 'Unknown'}`);
+    } else {
+      parts.push('All Factories');
+    }
+    
+    if (lineId) {
+      const line = lines.find(l => l.id === lineId);
+      parts.push(`Line: ${line?.name || 'Unknown'}`);
+    } else if (factoryId) {
+      parts.push('All Lines');
+    }
+    
+    return parts.join(' • ');
+  }, [factoryId, lineId, factories, lines]);
+
+  const timeRangeText = useMemo(() => {
+    switch (timeRange) {
+      case 'last24h':
+        return 'Last 24 Hours';
+      case 'last7d':
+        return 'Last 7 Days';
+      case 'last30d':
+        return 'Last 30 Days';
+      default:
+        return timeRange;
+    }
+  }, [timeRange]);
 
   // Role & Responsibilities handlers
   const handleEditClick = () => {
@@ -75,42 +120,48 @@ export default function Home() {
 
       <Grid container spacing={2}>
         <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
-              <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-                <InsightsIcon color="primary" />
-                <Typography variant="h6">AI Insight — Predictive Production (Demo)</Typography>
-                <Chip label="Demo" size="small" color="secondary" variant="outlined" />
-              </Stack>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-                Next 7 days (units): {forecast}
-              </Typography>
-              <Box component="ul" sx={{ m: 0, pl: 3 }}>
-                <li>Top driver: Planned maintenance on Line A (Sat/Sun)</li>
-                <li>Watchlist: Weld spatter recurrence risk on M‑101</li>
-                <li>Suggestion: Pre‑stage slit coil for Mon–Wed demand</li>
-              </Box>
-            </CardContent>
-          </Card>
+          <AiInsightCard
+            title="AI Insight — Predictive Production"
+            badge="Demo"
+            subtitle={`Next 7 days (units): ${forecast}`}
+            bullets={[
+              'Top driver: Planned maintenance on Line A (Sat/Sun)',
+              'Watchlist: Weld spatter recurrence risk on M‑101',
+              'Suggestion: Pre‑stage slit coil for Mon–Wed demand'
+            ]}
+          />
         </Grid>
 
         <Grid item xs={12} md={4}>
           <Stack spacing={1}>
-            <Paper variant="outlined" sx={{ p: 1 }}>
-              <Typography variant="caption" color="text.secondary">Scope</Typography>
-              <Typography variant="body1">{scopeText}</Typography>
-            </Paper>
-            <Paper variant="outlined" sx={{ p: 1 }}>
-              <Typography variant="caption" color="text.secondary">Prototype Notes</Typography>
-              <Typography variant="body2">
-                This dashboard reflects your current Factory/Line selection in the top bar.
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                Current Scope
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500, mb: 1 }}>
+                {scopeText}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Time Range: {timeRangeText}
               </Typography>
             </Paper>
-            <Paper variant="outlined" sx={{ p: 1 }}>
+            
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Typography variant="caption" color="text.secondary">
+                Prototype Notes
+              </Typography>
+              <Typography variant="body2">
+                This dashboard reflects your current Factory/Line/Time selection in the top bar.
+              </Typography>
+            </Paper>
+            
+            <Paper variant="outlined" sx={{ p: 2 }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
                 <Stack direction="row" alignItems="center" spacing={0.5}>
                   <WorkIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                  <Typography variant="caption" color="text.secondary">Role & Responsibilities</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Role & Responsibilities
+                  </Typography>
                 </Stack>
                 <Button
                   size="small"
@@ -160,3 +211,4 @@ export default function Home() {
     </Stack>
   );
 }
+
