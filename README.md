@@ -252,11 +252,43 @@ function generateId(): string {
 # Install dependencies
 npm install
 
+# Set up environment (optional - works without!)
+cp .env.local.example .env.local
+# Edit .env.local and set APP_DEMO_MODE=true for synthetic data
+
 # Run development server
 npm run dev
 
 # Open http://localhost:3000 (or :3001 if 3000 is busy)
 ```
+
+### Demo Mode
+
+The app works **completely without a database** using synthetic data! This is perfect for:
+- Local development
+- Demonstrations and prototypes
+- Testing UI without Supabase setup
+
+**To enable demo mode:**
+
+1. Create `.env.local` in project root:
+```env
+NEXT_PUBLIC_APP_DEMO_MODE=true
+```
+
+2. Restart dev server
+
+**What you get in demo mode:**
+- 90 days of realistic manufacturing data
+- 3 production lines (Line A, B, C)
+- Line speeds with downtime dips to 0 and runs at 700-800 ft/min
+- Downtime events with 8 common causes
+- Quality metrics (FPY, defects, control charts)
+- OEE calculations and trends
+- Work requests, concepts, wins
+- All charts and dashboards fully functional
+
+**No database required!** All services automatically fall back to in-memory synthetic data.
 
 ## 🛠️ Available Scripts
 
@@ -265,8 +297,23 @@ npm run dev        # Start development server
 npm run build      # Build for production
 npm run start      # Start production server
 npm run typecheck  # Run TypeScript type checking
-npm run lint       # Run ESLint (may have config issues, use typecheck)
+npm run lint       # Run ESLint
+npm run seed:demo  # Seed Supabase with demo data (requires service role key)
 ```
+
+### Seeding Demo Data to Supabase
+
+If you have a Supabase instance and want to populate it with demo data:
+
+```bash
+# Add to .env.local
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+
+# Run seed script
+npm run seed:demo
+```
+
+Note: The seed script currently requires table schemas to be created first.
 
 ## 📁 Project Structure
 
@@ -274,25 +321,40 @@ npm run lint       # Run ESLint (may have config issues, use typecheck)
 ├── src/
 │   ├── app/                      # Next.js App Router pages
 │   │   ├── operations/           # Operations section pages
+│   │   │   ├── plant-performance/  # Full performance dashboard (8 charts)
+│   │   │   ├── line-speed/       # Line speed monitoring
+│   │   │   ├── downtime/         # Downtime analysis
+│   │   │   ├── quality/          # Quality metrics
+│   │   │   └── greasy-twin/      # Bearing monitoring
 │   │   ├── improvement/          # Improvement section pages
 │   │   ├── recognition/          # Recognition section pages
+│   │   ├── inspiration/          # HMW inspiration gallery
 │   │   ├── requests/             # Work requests page
 │   │   ├── admin/                # Admin pages
 │   │   ├── login/                # Auth pages
 │   │   ├── layout.js             # Root layout
-│   │   └── page.tsx              # Home page
+│   │   └── page.tsx              # Home page with KPIs
 │   ├── components/
-│   │   ├── common/               # Reusable components (AiInsightCard, etc.)
+│   │   ├── common/               # Reusable components (AiInsightCard, KpiTile)
+│   │   ├── charts/               # Chart wrappers (LineCard, BarCard, ScatterCard)
 │   │   ├── nav/                  # Navigation (DrawerNav)
 │   │   └── shell/                # App shell (AppShell)
 │   └── lib/
 │       ├── services/             # Data access layer (NO direct Supabase in components)
+│       │   ├── metricsService.ts    # KPIs, OEE, speed
+│       │   ├── downtimeService.ts   # Downtime analytics
+│       │   ├── qualityService.ts    # FPY, defects, control charts
+│       │   ├── maintenanceService.ts # MTTR/MTBF
+│       │   ├── insightsService.ts   # AI insights
+│       │   └── [others].ts          # Work requests, ideas, wins
+│       ├── demo/                 # Synthetic data generators
+│       ├── hmw/                  # How Might We prompts
 │       ├── state/                # Global state (Zustand)
+│       ├── types.ts              # TypeScript interfaces
 │       └── routes.ts             # Drawer navigation configuration
 ├── lib/                          # Legacy location (being migrated to src/lib)
-│   ├── supabaseClient.js
-│   ├── theme.js
-│   └── scope.js
+├── scripts/
+│   └── seed-demo-data.ts         # Supabase seeding script
 ├── middleware.ts                 # Route redirects
 └── public/                       # Static assets
 ```
@@ -316,11 +378,22 @@ Login page has full-bleed layout; all other pages use the AppShell (drawer + App
 
 ## 📊 Key Features
 
+### Plant Performance Dashboard
+- **8 interactive charts** showing comprehensive manufacturing metrics
+- Multi-series line speed with **red 700 ft/min goal line**
+- Downtime Pareto analysis (80/20 rule)
+- OEE (Overall Equipment Effectiveness) with A×P×Q breakdown
+- Speed vs Downtime correlation scatter plot
+- First Pass Yield trends
+- MTTR/MTBF maintenance metrics
+- AI-driven performance insights
+
 ### Line Speed Chart
 - Multi-series line chart with Recharts
 - Red goal line at 700 ft/min
 - Synthetic data fallback if DB unavailable
 - Responsive to global filters (factory, line, time range)
+- AI insights with goal attainment calculations
 
 ### Work Requests
 - Create/track maintenance requests
@@ -333,10 +406,29 @@ Login page has full-bleed layout; all other pages use the AppShell (drawer + App
 - Quick wins identification
 - Status workflow (Draft → Proposed → Approved → In-Progress → Done)
 
+### Downtime Analysis
+- KPI tiles (total hours, events, top cause, mean duration)
+- Pareto chart of downtime causes
+- Timeline view of recent events with severity indicators
+- Quick action buttons to create work requests or improvement concepts
+
+### Quality Metrics
+- First Pass Yield (FPY) trends with 98% goal band
+- Defects by cause analysis
+- Statistical process control charts (p-chart) with UCL/LCL
+- Violation detection and alerts
+
 ### Recognition Wins
 - Celebrate team achievements
 - KPI delta tracking
 - Evidence links for documentation
+
+### HMW Inspiration Gallery
+- 30+ "How Might We..." prompts across 5 categories
+- Searchable and filterable by category and tags
+- Mini visualizations on select cards
+- One-click "Create Concept" with pre-filled forms
+- Contextual HMW suggestions on operational pages
 
 ## 🤝 Contributing
 
