@@ -13,7 +13,9 @@ export interface LineSpeedSeries {
 interface GetLineSpeedSeriesParams {
   factoryId?: string | null;
   lineIds?: string[] | null;
-  range: 'last24h' | 'last7d' | 'last30d';
+  range: 'last24h' | 'last7d' | 'last30d' | 'last60d' | 'last90d' | 'custom';
+  customStartDate?: string | null;
+  customEndDate?: string | null;
 }
 
 /**
@@ -23,7 +25,7 @@ interface GetLineSpeedSeriesParams {
 export async function getLineSpeedSeries(
   params: GetLineSpeedSeriesParams
 ): Promise<LineSpeedSeries[]> {
-  const { factoryId, lineIds, range } = params;
+  const { factoryId, lineIds, range, customStartDate, customEndDate } = params;
 
   // Calculate time range
   const now = new Date();
@@ -31,22 +33,45 @@ export async function getLineSpeedSeries(
   let startTime: Date;
   let intervalMs: number;
 
-  switch (range) {
-    case 'last24h':
-      startTime = new Date(now.getTime() - 24 * msPerHour);
+  if (range === 'custom' && customStartDate && customEndDate) {
+    startTime = new Date(customStartDate);
+    const endTime = new Date(customEndDate);
+    const daysDiff = Math.ceil((endTime.getTime() - startTime.getTime()) / (24 * msPerHour));
+    
+    // Choose interval based on date range
+    if (daysDiff <= 2) {
       intervalMs = msPerHour; // 1 hour intervals
-      break;
-    case 'last7d':
-      startTime = new Date(now.getTime() - 7 * 24 * msPerHour);
+    } else if (daysDiff <= 14) {
       intervalMs = 4 * msPerHour; // 4 hour intervals
-      break;
-    case 'last30d':
-      startTime = new Date(now.getTime() - 30 * 24 * msPerHour);
+    } else {
       intervalMs = 24 * msPerHour; // 1 day intervals
-      break;
-    default:
-      startTime = new Date(now.getTime() - 24 * msPerHour);
-      intervalMs = msPerHour;
+    }
+  } else {
+    switch (range) {
+      case 'last24h':
+        startTime = new Date(now.getTime() - 24 * msPerHour);
+        intervalMs = msPerHour; // 1 hour intervals
+        break;
+      case 'last7d':
+        startTime = new Date(now.getTime() - 7 * 24 * msPerHour);
+        intervalMs = 4 * msPerHour; // 4 hour intervals
+        break;
+      case 'last30d':
+        startTime = new Date(now.getTime() - 30 * 24 * msPerHour);
+        intervalMs = 24 * msPerHour; // 1 day intervals
+        break;
+      case 'last60d':
+        startTime = new Date(now.getTime() - 60 * 24 * msPerHour);
+        intervalMs = 24 * msPerHour; // 1 day intervals
+        break;
+      case 'last90d':
+        startTime = new Date(now.getTime() - 90 * 24 * msPerHour);
+        intervalMs = 24 * msPerHour; // 1 day intervals
+        break;
+      default:
+        startTime = new Date(now.getTime() - 24 * msPerHour);
+        intervalMs = msPerHour;
+    }
   }
 
   try {

@@ -35,7 +35,12 @@ export default function AppShell({ children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Global filters from Zustand
-  const { factoryId, lineId, timeRange, setFactoryId, setLineId, setTimeRange } = useGlobalFilters();
+  const { factoryId, lineId, timeRange, customStartDate, customEndDate, setFactoryId, setLineId, setTimeRange, setCustomDateRange } = useGlobalFilters();
+  
+  // Track if dropdowns are open to prevent tooltip conflicts
+  const [factoryOpen, setFactoryOpen] = useState(false);
+  const [lineOpen, setLineOpen] = useState(false);
+  const [timeOpen, setTimeOpen] = useState(false);
 
   // Data for selectors
   const [factories, setFactories] = useState<Array<{ id: string; name: string }>>([]);
@@ -160,13 +165,24 @@ export default function AppShell({ children }: AppShellProps) {
           {/* Global selectors */}
           {sessionReady && (
             <Stack direction="row" spacing={1} alignItems="center">
-              <Tooltip title="Filter all pages by Factory">
+              <Tooltip 
+                title="Filter all pages by Factory" 
+                disableHoverListener={factoryOpen}
+                disableFocusListener={factoryOpen}
+              >
                 <TextField
                   size="small"
                   label="Factory"
                   select
                   value={factoryId || ''}
                   onChange={(e) => setFactoryId(e.target.value || null)}
+                  onOpen={() => setFactoryOpen(true)}
+                  onClose={() => setFactoryOpen(false)}
+                  SelectProps={{
+                    MenuProps: {
+                      disableScrollLock: true,
+                    },
+                  }}
                   sx={{ minWidth: 140 }}
                 >
                   <MenuItem value="">(All)</MenuItem>
@@ -178,13 +194,24 @@ export default function AppShell({ children }: AppShellProps) {
                 </TextField>
               </Tooltip>
 
-              <Tooltip title="Filter by Line (within the selected Factory)">
+              <Tooltip 
+                title="Filter by Line (within the selected Factory)"
+                disableHoverListener={lineOpen}
+                disableFocusListener={lineOpen}
+              >
                 <TextField
                   size="small"
                   label="Line"
                   select
                   value={lineId || ''}
                   onChange={(e) => setLineId(e.target.value || null)}
+                  onOpen={() => setLineOpen(true)}
+                  onClose={() => setLineOpen(false)}
+                  SelectProps={{
+                    MenuProps: {
+                      disableScrollLock: true,
+                    },
+                  }}
                   sx={{ minWidth: 120 }}
                   disabled={!factoryId}
                 >
@@ -197,18 +224,32 @@ export default function AppShell({ children }: AppShellProps) {
                 </TextField>
               </Tooltip>
 
-              <Tooltip title="Time range for data">
+              <Tooltip 
+                title="Time range for data"
+                disableHoverListener={timeOpen}
+                disableFocusListener={timeOpen}
+              >
                 <TextField
                   size="small"
                   label="Time Range"
                   select
                   value={timeRange}
                   onChange={(e) => setTimeRange(e.target.value as any)}
-                  sx={{ minWidth: 120 }}
+                  onOpen={() => setTimeOpen(true)}
+                  onClose={() => setTimeOpen(false)}
+                  SelectProps={{
+                    MenuProps: {
+                      disableScrollLock: true,
+                    },
+                  }}
+                  sx={{ minWidth: 140 }}
                 >
-                  <MenuItem value="last24h">Last 24h</MenuItem>
-                  <MenuItem value="last7d">Last 7d</MenuItem>
-                  <MenuItem value="last30d">Last 30d</MenuItem>
+                  <MenuItem value="last24h">Last 24 Hours</MenuItem>
+                  <MenuItem value="last7d">Last 7 Days</MenuItem>
+                  <MenuItem value="last30d">Last 30 Days</MenuItem>
+                  <MenuItem value="last60d">Last 60 Days</MenuItem>
+                  <MenuItem value="last90d">Last 90 Days</MenuItem>
+                  <MenuItem value="custom">Custom Range</MenuItem>
                 </TextField>
               </Tooltip>
 

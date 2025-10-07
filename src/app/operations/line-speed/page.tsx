@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Stack, Typography, Card, CardContent, Box, CircularProgress, Alert } from '@mui/material';
+import { useEffect, useState, useMemo } from 'react';
+import { Stack, Typography, Card, CardContent, Box, CircularProgress, Alert, Grid } from '@mui/material';
 import {
   LineChart,
   Line,
@@ -15,12 +15,13 @@ import {
 } from 'recharts';
 import { useGlobalFilters } from '@/src/lib/state/globalFilters';
 import { getLineSpeedSeries, LineSpeedSeries } from '@/src/lib/services/lineSpeedService';
+import AiInsightCard from '@/src/components/common/AiInsightCard';
 
 // Color palette for multiple lines
 const LINE_COLORS = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#c2185b', '#0097a7'];
 
 export default function LineSpeedPage() {
-  const { factoryId, lineId, timeRange } = useGlobalFilters();
+  const { factoryId, lineId, timeRange, customStartDate, customEndDate } = useGlobalFilters();
   const [series, setSeries] = useState<LineSpeedSeries[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +39,8 @@ export default function LineSpeedPage() {
           factoryId,
           lineIds,
           range: timeRange,
+          customStartDate,
+          customEndDate,
         });
 
         if (!active) return;
@@ -61,7 +64,7 @@ export default function LineSpeedPage() {
     return () => {
       active = false;
     };
-  }, [factoryId, lineId, timeRange]);
+  }, [factoryId, lineId, timeRange, customStartDate, customEndDate]);
 
   // Transform series data into Recharts format
   const chartData = (() => {
@@ -92,14 +95,80 @@ export default function LineSpeedPage() {
     });
   })();
 
+  // Generate AI insights based on the data
+  const insights = useMemo(() => {
+    if (series.length === 0) return [];
+    
+    const bullets: string[] = [];
+    
+    // Calculate average speed and goal achievement
+    let totalPoints = 0;
+    let aboveGoal = 0;
+    let atZero = 0;
+    
+    series.forEach(s => {
+      s.data.forEach(d => {
+        totalPoints++;
+        if (d.value >= 700) aboveGoal++;
+        if (d.value === 0) atZero++;
+      });
+    });
+    
+    const goalRate = totalPoints > 0 ? (aboveGoal / totalPoints * 100).toFixed(1) : '0';
+    const downtimeRate = totalPoints > 0 ? (atZero / totalPoints * 100).toFixed(1) : '0';
+    
+    bullets.push(`Goal achievement: ${goalRate}% of measurements at or above 700 ft/min target`);
+    
+    if (parseFloat(downtimeRate) > 10) {
+      bullets.push(`Downtime alert: ${downtimeRate}% of time at zero speed — investigate common causes`);
+    } else {
+      bullets.push(`Downtime: ${downtimeRate}% — within acceptable range`);
+    }
+    
+    if (parseFloat(goalRate) < 60) {
+      bullets.push('Recommendation: Review changeover procedures and material staging to reduce speed variations');
+    } else if (parseFloat(goalRate) >= 80) {
+      bullets.push('Strong performance: Maintain current operating procedures and share best practices');
+    }
+    
+    bullets.push('Action: Monitor for consistent patterns below goal and schedule preventive maintenance');
+    
+    return bullets;
+  }, [series]);
+
+  const timeRangeLabel = useMemo(() => {
+    switch (timeRange) {
+      case 'last24h': return 'Last 24 Hours';
+      case 'last7d': return 'Last 7 Days';
+      case 'last30d': return 'Last 30 Days';
+      case 'last60d': return 'Last 60 Days';
+      case 'last90d': return 'Last 90 Days';
+      case 'custom': return 'Custom Range';
+      default: return timeRange;
+    }
+  }, [timeRange]);
+
   return (
     <Stack spacing={2}>
       <Typography variant="h5">Line Speed</Typography>
+      
+      {/* AI Insights */}
+      {!loading && series.length > 0 && (
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <AiInsightCard
+              title="AI Performance Insights"
+              badge="Live"
+              bullets={insights}
+            />
+          </Grid>
+        </Grid>
+      )}
 
       <Card>
         <CardContent>
           <Typography variant="subtitle1" sx={{ mb: 2 }}>
-            Line Speed (ft/min) — {timeRange === 'last24h' ? 'Last 24 Hours' : timeRange === 'last7d' ? 'Last 7 Days' : 'Last 30 Days'}
+            Line Speed (ft/min) — {timeRangeLabel}
           </Typography>
 
           {loading && (
