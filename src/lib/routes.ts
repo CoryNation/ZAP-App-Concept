@@ -18,6 +18,10 @@ export const routes: RouteItem[] = [
     section: true,
   },
   {
+    label: 'Plant Performance',
+    href: '/operations/plant-performance',
+  },
+  {
     label: 'Line Speed',
     href: '/operations/line-speed',
   },
