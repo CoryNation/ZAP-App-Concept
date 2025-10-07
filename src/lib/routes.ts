@@ -62,8 +62,8 @@ export const routes: RouteItem[] = [
     section: true,
   },
   {
-    label: 'Admin',
-    href: '/admin',
+    label: 'User Management',
+    href: '/admin/users',
   },
   {
     label: 'Settings',
