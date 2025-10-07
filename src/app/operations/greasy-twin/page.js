@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
-import { useScope } from '../../lib/scope';
+import { supabase } from '@/lib/supabaseClient';
+import { useScope } from '@/lib/scope';
 import {
   Stack, Typography, Card, CardContent, Table, TableHead, TableRow, TableCell,
   TableBody, Button, Chip, TextField, MenuItem, Grid, Box
@@ -265,3 +265,4 @@ export default function GreasyTwin() {
     </Stack>
   );
 }
+

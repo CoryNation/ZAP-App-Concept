@@ -21,7 +21,7 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import DrawerNav from '../nav/DrawerNav';
 import { useGlobalFilters } from '../../lib/state/globalFilters';
-import { supabase } from '../../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 const DRAWER_WIDTH = 260;
 

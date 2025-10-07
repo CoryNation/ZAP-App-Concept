@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import {
   Stack, Card, CardContent, Typography, TextField, MenuItem, Button, Alert
 } from '@mui/material';

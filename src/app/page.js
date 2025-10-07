@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../lib/supabaseClient';
-import { useScope } from '../lib/scope';
+import { supabase } from '@/lib/supabaseClient';
+import { useScope } from '@/lib/scope';
 import {
   Stack, Typography, Card, CardContent, Chip, Box, Grid, Paper, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';

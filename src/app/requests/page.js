@@ -16,7 +16,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import FilterListIcon from '@mui/icons-material/FilterList';
 
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 /* =========================================================================
    Status palette & helpers
@@ -818,3 +818,4 @@ function cryptoId() {
   }
   return Math.random().toString(16).slice(2);
 }
+

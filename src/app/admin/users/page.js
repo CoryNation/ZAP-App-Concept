@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import {
   Box, Stack, Typography, Card, CardContent, Grid, TextField, MenuItem,
   Button, Table, TableHead, TableRow, TableCell, TableBody, Chip,

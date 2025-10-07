@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
-import { useScope } from '../../lib/scope';
+import { supabase } from '@/lib/supabaseClient';
+import { useScope } from '@/lib/scope';
 import {
   Box, Card, CardContent, Typography, Grid, TextField, MenuItem, Button,
   Table, TableHead, TableRow, TableCell, TableBody, Snackbar, Alert, Stack
