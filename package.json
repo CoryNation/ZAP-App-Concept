@@ -4,7 +4,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@emotion/react": "11.11.4",
@@ -22,6 +24,8 @@
   "devDependencies": {
     "@types/node": "^24.7.0",
     "@types/react": "^18.3.26",
+    "eslint": "^9.37.0",
+    "eslint-config-next": "^15.5.4",
     "typescript": "^5.9.3"
   }
 }

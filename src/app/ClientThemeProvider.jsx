@@ -3,8 +3,8 @@
 import { usePathname } from 'next/navigation';
 import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
-import theme from '../lib/theme';
-import AppShell from '../src/components/shell/AppShell';
+import theme from '@/lib/theme';
+import AppShell from '@/src/components/shell/AppShell';
 
 export default function ClientThemeProvider({ children }) {
   const pathname = usePathname();
