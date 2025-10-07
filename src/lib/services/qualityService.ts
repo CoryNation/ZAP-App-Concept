@@ -13,14 +13,23 @@ interface QualityParams {
 
 function getTimeRange(params: QualityParams) {
   const now = new Date();
-  const rangeMap = {
+  
+  if (params.range === 'custom' && params.customStartDate && params.customEndDate) {
+    const start = new Date(params.customStartDate);
+    const end = new Date(params.customEndDate);
+    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+    const intervalMs = daysDiff <= 2 ? 60 * 60 * 1000 : daysDiff <= 14 ? 4 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    return { start, end, intervalMs };
+  }
+  
+  const rangeMap: Record<string, { hours: number; interval: number }> = {
     last24h: { hours: 24, interval: 60 * 60 * 1000 },
     last7d: { hours: 168, interval: 4 * 60 * 60 * 1000 },
     last30d: { hours: 720, interval: 24 * 60 * 60 * 1000 },
     last60d: { hours: 1440, interval: 24 * 60 * 60 * 1000 },
     last90d: { hours: 2160, interval: 24 * 60 * 60 * 1000 },
   };
-  const config = rangeMap[params.range] || rangeMap.last24h;
+  const config = rangeMap[params.range] || rangeMap['last24h'];
   return {
     start: new Date(now.getTime() - config.hours * 60 * 60 * 1000),
     end: now,

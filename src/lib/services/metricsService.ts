@@ -37,7 +37,7 @@ function calculateTimeRange(params: MetricsParams) {
     return { startTime, endTime, intervalMs };
   }
 
-  const rangeMap = {
+  const rangeMap: Record<string, { hours: number; interval: number }> = {
     last24h: { hours: 24, interval: msPerHour },
     last7d: { hours: 7 * 24, interval: 4 * msPerHour },
     last30d: { hours: 30 * 24, interval: 24 * msPerHour },
@@ -45,7 +45,7 @@ function calculateTimeRange(params: MetricsParams) {
     last90d: { hours: 90 * 24, interval: 24 * msPerHour },
   };
 
-  const config = rangeMap[params.range] || rangeMap.last24h;
+  const config = rangeMap[params.range] || rangeMap['last24h'];
   startTime = new Date(now.getTime() - config.hours * msPerHour);
   intervalMs = config.interval;
 

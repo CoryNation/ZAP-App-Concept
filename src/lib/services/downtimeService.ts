@@ -13,7 +13,15 @@ interface DowntimeParams {
 
 function getTimeRange(params: DowntimeParams) {
   const now = new Date();
-  const rangeHours = {
+  
+  if (params.range === 'custom' && params.customStartDate && params.customEndDate) {
+    return {
+      start: new Date(params.customStartDate),
+      end: new Date(params.customEndDate),
+    };
+  }
+  
+  const rangeHours: Record<string, number> = {
     last24h: 24,
     last7d: 168,
     last30d: 720,

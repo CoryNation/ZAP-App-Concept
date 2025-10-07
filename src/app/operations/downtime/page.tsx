@@ -119,7 +119,7 @@ export default function DowntimePage() {
               const durationMins = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
               
               return (
-                <Card key={idx} variant="outlined" sx={{ borderLeft: `4px solid ${SEVERITY_COLORS[event.severity || 'low']}` }}>
+                <Card key={idx} variant="outlined" sx={{ borderLeft: `4px solid ${SEVERITY_COLORS[(event.severity as 'high' | 'medium' | 'low') || 'low']}` }}>
                   <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                       <Stack direction="row" spacing={2} alignItems="center">
@@ -136,7 +136,7 @@ export default function DowntimePage() {
                           label={`${durationMins} min`} 
                           size="small" 
                           variant="outlined"
-                          color={event.severity === 'high' ? 'error' : event.severity === 'medium' ? 'warning' : 'default'}
+                          color={(event.severity as any) === 'high' ? 'error' : (event.severity as any) === 'medium' ? 'warning' : 'default'}
                         />
                       </Stack>
                     </Stack>
