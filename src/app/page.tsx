@@ -10,16 +10,23 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import WorkIcon from '@mui/icons-material/Work';
 import AiInsightCard from '@/src/components/common/AiInsightCard';
+import KpiTile from '@/src/components/common/KpiTile';
+import { getPlantKpis } from '@/src/lib/services/metricsService';
+import { PlantKpis } from '@/src/lib/types';
 
 export default function Home() {
   const router = useRouter();
-  const { factoryId, lineId, timeRange } = useGlobalFilters();
+  const { factoryId, lineId, timeRange, customStartDate, customEndDate } = useGlobalFilters();
   const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   
   // Factory and line names for display
   const [factories, setFactories] = useState<Array<{ id: string; name: string }>>([]);
   const [lines, setLines] = useState<Array<{ id: string; name: string; factory_id: string }>>([]);
+  
+  // Plant KPIs
+  const [kpis, setKpis] = useState<PlantKpis | null>(null);
+  const [kpisLoading, setKpisLoading] = useState(true);
   
   // Role & Responsibilities state
   const [userRole, setUserRole] = useState('Global Operations Manager');
@@ -52,6 +59,29 @@ export default function Home() {
       setReady(true);
     })();
   }, [router]);
+
+  // Load plant KPIs
+  useEffect(() => {
+    async function loadKpis() {
+      if (!ready) return;
+      setKpisLoading(true);
+      try {
+        const kpisData = await getPlantKpis({
+          plantId: factoryId,
+          lineIds: lineId ? [lineId] : undefined,
+          range: timeRange,
+          customStartDate,
+          customEndDate,
+        });
+        setKpis(kpisData);
+      } catch (err) {
+        console.error('Error loading KPIs:', err);
+      } finally {
+        setKpisLoading(false);
+      }
+    }
+    loadKpis();
+  }, [ready, factoryId, lineId, timeRange, customStartDate, customEndDate]);
 
   const scopeText = useMemo(() => {
     const parts: string[] = [];
@@ -117,6 +147,39 @@ export default function Home() {
   return (
     <Stack spacing={2}>
       <Typography variant="h5">Welcome, {email}</Typography>
+
+      {/* KPI Overview */}
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6} md={3}>
+          <KpiTile 
+            label="Avg Line Speed" 
+            value={kpis?.avgLineSpeed || 0} 
+            unit="ft/min"
+            target={700}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <KpiTile 
+            label="Goal Attainment" 
+            value={kpis?.goalAttainmentPct || 0} 
+            unit="%"
+            target={85}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <KpiTile 
+            label="Downtime (24h)" 
+            value={kpis?.downtimeHours.toFixed(1) || '0'} 
+            unit="hrs"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <KpiTile 
+            label="Open Requests" 
+            value={kpis?.openRequests || 0}
+          />
+        </Grid>
+      </Grid>
 
       <Grid container spacing={2}>
         <Grid item xs={12} md={8}>
