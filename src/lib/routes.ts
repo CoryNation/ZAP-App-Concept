@@ -50,6 +50,10 @@ export const routes: RouteItem[] = [
     section: true,
   },
   {
+    label: 'Inspiration Gallery',
+    href: '/inspiration',
+  },
+  {
     label: 'Concepts & Proposals',
     href: '/improvement/concepts',
   },

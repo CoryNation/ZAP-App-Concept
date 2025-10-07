@@ -1,0 +1,195 @@
+[
+  {
+    "id": "hmw-001",
+    "category": "Decision Support",
+    "prompt": "How might we predict which production lines will need maintenance before failures occur?",
+    "tags": ["predictive", "maintenance", "reliability", "ai"]
+  },
+  {
+    "id": "hmw-002",
+    "category": "Decision Support",
+    "prompt": "How might we help operators make faster, data-driven decisions during shift handoffs?",
+    "tags": ["decisions", "operators", "handoff", "communication"]
+  },
+  {
+    "id": "hmw-003",
+    "category": "Decision Support",
+    "prompt": "How might we prioritize work requests based on real-time production impact?",
+    "tags": ["prioritization", "requests", "impact", "automation"]
+  },
+  {
+    "id": "hmw-004",
+    "category": "Decision Support",
+    "prompt": "How might we forecast material needs 7 days ahead to prevent shortages?",
+    "tags": ["forecasting", "materials", "planning", "inventory"]
+  },
+  {
+    "id": "hmw-005",
+    "category": "Decision Support",
+    "prompt": "How might we identify the optimal time for changeovers to minimize production loss?",
+    "tags": ["changeover", "optimization", "scheduling", "efficiency"]
+  },
+  {
+    "id": "hmw-006",
+    "category": "Decision Support",
+    "prompt": "How might we correlate weather patterns with production quality issues?",
+    "tags": ["correlation", "quality", "environment", "patterns"]
+  },
+  {
+    "id": "hmw-011",
+    "category": "Operational/Quality Improvement",
+    "prompt": "How might we reduce changeover time from 45 minutes to 20 minutes using SMED principles?",
+    "tags": ["smed", "changeover", "efficiency", "throughput"]
+  },
+  {
+    "id": "hmw-012",
+    "category": "Operational/Quality Improvement",
+    "prompt": "How might we achieve 700+ ft/min consistently across all lines?",
+    "tags": ["speed", "performance", "goal", "consistency"]
+  },
+  {
+    "id": "hmw-013",
+    "category": "Operational/Quality Improvement",
+    "prompt": "How might we eliminate recurring weld spatter issues on M-101?",
+    "tags": ["quality", "defects", "welding", "maintenance"]
+  },
+  {
+    "id": "hmw-014",
+    "category": "Operational/Quality Improvement",
+    "prompt": "How might we improve First Pass Yield from 95% to 98%?",
+    "tags": ["fpy", "quality", "improvement", "target"]
+  },
+  {
+    "id": "hmw-015",
+    "category": "Operational/Quality Improvement",
+    "prompt": "How might we reduce downtime events by 30% through preventive maintenance?",
+    "tags": ["downtime", "preventive", "maintenance", "reliability"]
+  },
+  {
+    "id": "hmw-016",
+    "category": "Operational/Quality Improvement",
+    "prompt": "How might we standardize best practices from Line B across all production lines?",
+    "tags": ["standardization", "best-practices", "knowledge-sharing", "performance"]
+  },
+  {
+    "id": "hmw-017",
+    "category": "Operational/Quality Improvement",
+    "prompt": "How might we pre-stage materials to eliminate mid-shift material shortage delays?",
+    "tags": ["materials", "staging", "efficiency", "planning"]
+  },
+  {
+    "id": "hmw-021",
+    "category": "Safety & Environmental",
+    "prompt": "How might we prevent safety incidents during high-speed production periods?",
+    "tags": ["safety", "prevention", "speed", "risk"]
+  },
+  {
+    "id": "hmw-022",
+    "category": "Safety & Environmental",
+    "prompt": "How might we reduce noise levels without impacting production output?",
+    "tags": ["environment", "noise", "safety", "ergonomics"]
+  },
+  {
+    "id": "hmw-023",
+    "category": "Safety & Environmental",
+    "prompt": "How might we ensure proper lockout/tagout compliance during unplanned maintenance?",
+    "tags": ["safety", "loto", "compliance", "maintenance"]
+  },
+  {
+    "id": "hmw-024",
+    "category": "Safety & Environmental",
+    "prompt": "How might we monitor air quality in real-time and trigger alerts when thresholds are exceeded?",
+    "tags": ["environment", "monitoring", "alerts", "health"]
+  },
+  {
+    "id": "hmw-025",
+    "category": "Safety & Environmental",
+    "prompt": "How might we reduce ergonomic strain for operators during 12-hour shifts?",
+    "tags": ["ergonomics", "safety", "operators", "wellness"]
+  },
+  {
+    "id": "hmw-026",
+    "category": "Safety & Environmental",
+    "prompt": "How might we track near-miss incidents to prevent future accidents?",
+    "tags": ["safety", "near-miss", "prevention", "tracking"]
+  },
+  {
+    "id": "hmw-031",
+    "category": "Data Systems & Measures",
+    "prompt": "How might we integrate real-time OD gauge readings into the dashboard?",
+    "tags": ["integration", "sensors", "real-time", "quality"]
+  },
+  {
+    "id": "hmw-032",
+    "category": "Data Systems & Measures",
+    "prompt": "How might we automatically capture production metrics without manual entry?",
+    "tags": ["automation", "data-capture", "efficiency", "accuracy"]
+  },
+  {
+    "id": "hmw-033",
+    "category": "Data Systems & Measures",
+    "prompt": "How might we make historical trend data accessible to operators on the shop floor?",
+    "tags": ["accessibility", "trends", "operators", "visibility"]
+  },
+  {
+    "id": "hmw-034",
+    "category": "Data Systems & Measures",
+    "prompt": "How might we validate data quality and detect sensor drift automatically?",
+    "tags": ["data-quality", "sensors", "validation", "reliability"]
+  },
+  {
+    "id": "hmw-035",
+    "category": "Data Systems & Measures",
+    "prompt": "How might we create a single source of truth for all production metrics?",
+    "tags": ["data", "integration", "centralization", "accuracy"]
+  },
+  {
+    "id": "hmw-036",
+    "category": "Data Systems & Measures",
+    "prompt": "How might we enable operators to annotate charts with context about events?",
+    "tags": ["annotation", "context", "operators", "collaboration"]
+  },
+  {
+    "id": "hmw-041",
+    "category": "Plant Performance & Data Management",
+    "prompt": "How might we benchmark performance across plants to identify improvement opportunities?",
+    "tags": ["benchmarking", "performance", "comparison", "improvement"]
+  },
+  {
+    "id": "hmw-042",
+    "category": "Plant Performance & Data Management",
+    "prompt": "How might we calculate and display OEE (Availability × Performance × Quality) in real-time?",
+    "tags": ["oee", "real-time", "performance", "metrics"]
+  },
+  {
+    "id": "hmw-043",
+    "category": "Plant Performance & Data Management",
+    "prompt": "How might we identify root causes of performance variations between shifts?",
+    "tags": ["root-cause", "shifts", "variation", "analysis"]
+  },
+  {
+    "id": "hmw-044",
+    "category": "Plant Performance & Data Management",
+    "prompt": "How might we track and improve MTTR (Mean Time To Repair) across all equipment?",
+    "tags": ["mttr", "maintenance", "performance", "tracking"]
+  },
+  {
+    "id": "hmw-045",
+    "category": "Plant Performance & Data Management",
+    "prompt": "How might we correlate line speed with quality metrics to find the optimal operating range?",
+    "tags": ["correlation", "speed", "quality", "optimization"]
+  },
+  {
+    "id": "hmw-046",
+    "category": "Plant Performance & Data Management",
+    "prompt": "How might we create transparent performance scorecards visible to all team members?",
+    "tags": ["transparency", "scorecards", "visibility", "engagement"]
+  },
+  {
+    "id": "hmw-047",
+    "category": "Plant Performance & Data Management",
+    "prompt": "How might we reward teams for sustained improvements in safety and efficiency?",
+    "tags": ["recognition", "rewards", "improvement", "culture"]
+  }
+]
+

@@ -65,6 +65,19 @@ export default function ConceptsPage() {
 
   useEffect(() => {
     loadIdeas();
+    
+    // Check for prefill data from inspiration page
+    const prefillData = sessionStorage.getItem('prefillConcept');
+    if (prefillData) {
+      try {
+        const parsed = JSON.parse(prefillData);
+        setFormData(parsed);
+        setDialogOpen(true);
+        sessionStorage.removeItem('prefillConcept');
+      } catch (err) {
+        console.error('Error parsing prefill data:', err);
+      }
+    }
   }, []);
 
   const loadIdeas = async () => {
