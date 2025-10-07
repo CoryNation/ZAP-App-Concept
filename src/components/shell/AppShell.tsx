@@ -176,9 +176,9 @@ export default function AppShell({ children }: AppShellProps) {
                   select
                   value={factoryId || ''}
                   onChange={(e) => setFactoryId(e.target.value || null)}
-                  onOpen={() => setFactoryOpen(true)}
-                  onClose={() => setFactoryOpen(false)}
                   SelectProps={{
+                    onOpen: () => setFactoryOpen(true),
+                    onClose: () => setFactoryOpen(false),
                     MenuProps: {
                       disableScrollLock: true,
                     },
@@ -205,9 +205,9 @@ export default function AppShell({ children }: AppShellProps) {
                   select
                   value={lineId || ''}
                   onChange={(e) => setLineId(e.target.value || null)}
-                  onOpen={() => setLineOpen(true)}
-                  onClose={() => setLineOpen(false)}
                   SelectProps={{
+                    onOpen: () => setLineOpen(true),
+                    onClose: () => setLineOpen(false),
                     MenuProps: {
                       disableScrollLock: true,
                     },
@@ -235,9 +235,9 @@ export default function AppShell({ children }: AppShellProps) {
                   select
                   value={timeRange}
                   onChange={(e) => setTimeRange(e.target.value as any)}
-                  onOpen={() => setTimeOpen(true)}
-                  onClose={() => setTimeOpen(false)}
                   SelectProps={{
+                    onOpen: () => setTimeOpen(true),
+                    onClose: () => setTimeOpen(false),
                     MenuProps: {
                       disableScrollLock: true,
                     },
