@@ -1,0 +1,5 @@
+- Do not place DB calls in React components. Use src/lib/services/*.
+- Keep commits small and descriptive.
+- When adding routes, update DrawerNav and README IA.
+- Use Material UI; primary color #b51e27; rounded cards.
+- Provide synthetic data fallbacks if Supabase tables are absent.
