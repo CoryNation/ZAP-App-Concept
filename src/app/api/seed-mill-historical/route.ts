@@ -6,6 +6,9 @@ import {
   HistoricalEventsFilters,
 } from '@/src/lib/services/seedMillHistoricalService';
 
+// Mark this route as dynamic since it uses searchParams
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/seed-mill-historical
  * 

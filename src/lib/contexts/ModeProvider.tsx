@@ -13,7 +13,15 @@ interface ModeContextType {
   setMode: (mode: AppMode) => void;
 }
 
-const ModeContext = createContext<ModeContextType | undefined>(undefined);
+// Provide a default context value for SSR/SSG
+const defaultModeContext: ModeContextType = {
+  mode: 'poc',
+  setMode: () => {
+    // No-op during SSR/SSG
+  },
+};
+
+const ModeContext = createContext<ModeContextType>(defaultModeContext);
 
 function getValidMode(value: string | null): AppMode {
   if (value === 'poc' || value === 'prod_trials') {
@@ -128,9 +136,7 @@ export function ModeProvider({ children }: ModeProviderProps) {
 
 export function useAppMode(): ModeContextType {
   const context = useContext(ModeContext);
-  if (context === undefined) {
-    throw new Error('useAppMode must be used within a ModeProvider');
-  }
+  // Context will always have a value (either from provider or default)
   return context;
 }
 
