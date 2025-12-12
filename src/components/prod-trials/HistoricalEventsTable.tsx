@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -21,6 +21,7 @@ import {
   Chip,
   Paper,
 } from '@mui/material';
+import { useGlobalFilters } from '@/src/lib/state/globalFilters';
 import {
   SeedMillHistoricalEvent,
   HistoricalEventsResponse,
@@ -30,61 +31,90 @@ interface HistoricalEventsTableProps {
   initialMill?: string;
 }
 
-export default function HistoricalEventsTable({ initialMill = 'Mill 1' }: HistoricalEventsTableProps) {
+// Convert timeRange from global filters to start/end dates
+function convertTimeRangeToDates(
+  timeRange: string,
+  customStartDate: string | null,
+  customEndDate: string | null
+): { startDate: Date; endDate: Date } {
+  const now = new Date();
+  
+  if (timeRange === 'custom' && customStartDate && customEndDate) {
+    return {
+      startDate: new Date(customStartDate),
+      endDate: new Date(customEndDate),
+    };
+  }
+  
+  const rangeHours: Record<string, number> = {
+    last24h: 24,
+    last7d: 168,
+    last30d: 720,
+    last60d: 1440,
+    last90d: 2160,
+  };
+  
+  const hours = rangeHours[timeRange] || 24;
+  return {
+    startDate: new Date(now.getTime() - hours * 60 * 60 * 1000),
+    endDate: now,
+  };
+}
+
+export default function HistoricalEventsTable({ initialMill }: HistoricalEventsTableProps) {
+  const { factoryId, timeRange, customStartDate, customEndDate } = useGlobalFilters();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<HistoricalEventsResponse | null>(null);
   const [mills, setMills] = useState<string[]>([]);
   
-  // Filters
-  const [mill, setMill] = useState(initialMill);
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [state, setState] = useState<string>('');
+  // Local filters (can be overridden by user)
+  const [mill, setMill] = useState<string>('');
+  const [localStartDate, setLocalStartDate] = useState<string>('');
+  const [localEndDate, setLocalEndDate] = useState<string>('');
+  const [state, setState] = useState<string>(''); // Default to empty = All states
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(50);
+  
+  // Convert global timeRange to dates
+  const { startDate: globalStartDate, endDate: globalEndDate } = useMemo(
+    () => convertTimeRangeToDates(timeRange, customStartDate, customEndDate),
+    [timeRange, customStartDate, customEndDate]
+  );
+  
+  // Use local dates if set, otherwise use global dates
+  const effectiveStartDate = localStartDate || globalStartDate.toISOString().split('T')[0];
+  const effectiveEndDate = localEndDate || globalEndDate.toISOString().split('T')[0];
 
-  // Load available mills
+  // Load available mills and set default mill
   useEffect(() => {
     async function loadMills() {
       try {
         const response = await fetch('/api/seed-mill-historical?getMills=true');
         const result = await response.json();
-        if (result.mills) {
+        if (result.mills && result.mills.length > 0) {
           setMills(result.mills);
+          // Set default mill if not already set
+          if (!mill) {
+            const defaultMill = initialMill || result.mills[0];
+            setMill(defaultMill);
+          }
         }
       } catch (err) {
         console.error('Error loading mills:', err);
-      }
-    }
-    loadMills();
-  }, []);
-
-  // Load default date range on mount or when mill changes (if dates not set)
-  useEffect(() => {
-    async function loadDefaultRange() {
-      // Only load if dates are not set
-      if (!startDate || !endDate) {
-        try {
-          const response = await fetch(`/api/seed-mill-historical?getDefaultRange=true&mill=${mill}`);
-          const result = await response.json();
-          if (result.startDate && result.endDate) {
-            setStartDate(result.startDate.split('T')[0]); // Extract date part
-            setEndDate(result.endDate.split('T')[0]);
-          }
-        } catch (err) {
-          console.error('Error loading default date range:', err);
+        // Set a fallback mill
+        if (!mill) {
+          setMill(initialMill || 'Mill 1');
         }
       }
     }
-    loadDefaultRange();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mill]);
+    loadMills();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load events
+  // Load events when filters change
   useEffect(() => {
     async function loadEvents() {
-      if (!startDate || !endDate) {
+      if (!mill || !effectiveStartDate || !effectiveEndDate) {
         setLoading(false);
         return;
       }
@@ -95,12 +125,13 @@ export default function HistoricalEventsTable({ initialMill = 'Mill 1' }: Histor
       try {
         const params = new URLSearchParams({
           mill,
-          startDate: new Date(startDate).toISOString(),
-          endDate: new Date(endDate + 'T23:59:59').toISOString(), // End of day
+          startDate: new Date(effectiveStartDate).toISOString(),
+          endDate: new Date(effectiveEndDate + 'T23:59:59').toISOString(), // End of day
           page: (page + 1).toString(),
           pageSize: pageSize.toString(),
         });
 
+        // Only add state filter if a specific state is selected (empty = All)
         if (state) {
           params.append('state', state);
         }
@@ -122,7 +153,14 @@ export default function HistoricalEventsTable({ initialMill = 'Mill 1' }: Histor
     }
 
     loadEvents();
-  }, [mill, startDate, endDate, state, page, pageSize]);
+  }, [mill, effectiveStartDate, effectiveEndDate, state, page, pageSize]);
+  
+  // Reset local dates when global filters change (so table syncs with global filters)
+  useEffect(() => {
+    setLocalStartDate('');
+    setLocalEndDate('');
+    setPage(0); // Reset to first page
+  }, [timeRange, customStartDate, customEndDate, factoryId]);
 
   const handlePageChange = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -186,9 +224,9 @@ export default function HistoricalEventsTable({ initialMill = 'Mill 1' }: Histor
             <TextField
               type="date"
               label="Start Date"
-              value={startDate}
+              value={effectiveStartDate}
               onChange={(e) => {
-                setStartDate(e.target.value);
+                setLocalStartDate(e.target.value);
                 setPage(0);
               }}
               size="small"
@@ -198,9 +236,9 @@ export default function HistoricalEventsTable({ initialMill = 'Mill 1' }: Histor
             <TextField
               type="date"
               label="End Date"
-              value={endDate}
+              value={effectiveEndDate}
               onChange={(e) => {
-                setEndDate(e.target.value);
+                setLocalEndDate(e.target.value);
                 setPage(0);
               }}
               size="small"
