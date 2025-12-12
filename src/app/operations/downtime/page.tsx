@@ -8,6 +8,7 @@ import { useGlobalFilters } from '@/src/lib/state/globalFilters';
 import { getDowntimePareto, getDowntimeTimeline } from '@/src/lib/services/downtimeService';
 import KpiTile from '@/src/components/common/KpiTile';
 import BarCard from '@/src/components/charts/BarCard';
+import { useModeRoute } from '@/src/lib/hooks/useModeRoute';
 
 const SEVERITY_COLORS = {
   high: '#d32f2f',
@@ -17,6 +18,7 @@ const SEVERITY_COLORS = {
 
 export default function DowntimePage() {
   const router = useRouter();
+  const getRoute = useModeRoute();
   const { factoryId, lineId, timeRange, customStartDate, customEndDate } = useGlobalFilters();
   const [loading, setLoading] = useState(true);
   const [paretoData, setParetoData] = useState<any[]>([]);
@@ -65,14 +67,14 @@ export default function DowntimePage() {
           <Button
             variant="outlined"
             startIcon={<AddIcon />}
-            onClick={() => router.push('/requests')}
+            onClick={() => router.push(getRoute('/requests'))}
           >
             Create Work Request
           </Button>
           <Button
             variant="outlined"
             startIcon={<AddIcon />}
-            onClick={() => router.push('/improvement/concepts')}
+            onClick={() => router.push(getRoute('/improvement/concepts'))}
           >
             Create Concept
           </Button>

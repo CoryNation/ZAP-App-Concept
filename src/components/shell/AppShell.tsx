@@ -22,6 +22,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DrawerNav from '../nav/DrawerNav';
 import { useGlobalFilters } from '../../lib/state/globalFilters';
 import { supabase } from '@/lib/supabaseClient';
+import AppModeToggle from '../common/AppModeToggle';
 
 const DRAWER_WIDTH = 260;
 
@@ -161,6 +162,9 @@ export default function AppShell({ children }: AppShellProps) {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             ZAP App
           </Typography>
+
+          {/* App Mode Toggle */}
+          <AppModeToggle />
 
           {/* Global selectors */}
           {sessionReady && (

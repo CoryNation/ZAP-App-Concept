@@ -11,15 +11,23 @@ import {
   Typography,
   Box,
 } from '@mui/material';
-import { routes, RouteItem } from '../../lib/routes';
+import { getRoutes, RouteItem } from '../../lib/routes';
+import { useAppMode } from '../../lib/contexts/ModeProvider';
+import { baseRoute } from '../../lib/utils/modeRouter';
 
 export default function DrawerNav() {
   const pathname = usePathname();
+  const { mode } = useAppMode();
+  const routes = getRoutes(mode);
 
   const isActive = (href?: string) => {
     if (!href) return false;
     if (href === '/') return pathname === '/';
-    return pathname.startsWith(href);
+    // Compare base routes to handle both /operations/downtime and /production-trials/operations/downtime
+    const basePath = baseRoute(pathname);
+    const baseHref = baseRoute(href);
+    if (baseHref === '/') return basePath === '/';
+    return basePath.startsWith(baseHref);
   };
 
   const renderItem = (item: RouteItem, index: number) => {

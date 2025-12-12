@@ -1,4 +1,7 @@
 // Route configuration for the ZAP App navigation drawer
+import { AppMode } from './contexts/ModeProvider';
+import { modeRoute } from './utils/modeRouter';
+
 export interface RouteItem {
   label: string;
   href?: string;
@@ -8,7 +11,8 @@ export interface RouteItem {
   children?: RouteItem[];
 }
 
-export const routes: RouteItem[] = [
+// Base route definitions (without mode prefix)
+const baseRoutes: RouteItem[] = [
   {
     label: 'Home',
     href: '/',
@@ -78,4 +82,31 @@ export const routes: RouteItem[] = [
     href: '/settings',
   },
 ];
+
+/**
+ * Get mode-aware routes for navigation
+ * 
+ * @param mode - The current app mode
+ * @returns Routes with hrefs prefixed based on mode
+ */
+export function getRoutes(mode: AppMode): RouteItem[] {
+  return baseRoutes.map(route => {
+    // Section headers and dividers don't have hrefs, return as-is
+    if (route.section || route.divider || !route.href) {
+      return route;
+    }
+
+    // Apply mode-aware routing
+    return {
+      ...route,
+      href: modeRoute(route.href, mode),
+    };
+  });
+}
+
+/**
+ * Default routes export (for backward compatibility)
+ * Note: This will use 'poc' mode by default. Use getRoutes() with useAppMode() for mode-aware routes.
+ */
+export const routes = getRoutes('poc');
 
