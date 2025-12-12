@@ -167,8 +167,8 @@ export default function ConceptsPage() {
                   <Typography variant="subtitle1" sx={{ mb: 2 }}>
                     Impact vs Effort Matrix
                   </Typography>
-                  <Box sx={{ width: '100%', height: 400 }}>
-                    <ResponsiveContainer>
+                  <Box sx={{ width: '100%', height: 400, display: 'flex' }}>
+                    <ResponsiveContainer width="100%" height="100%">
                       <ScatterChart margin={{ top: 20, right: 20, bottom: 40, left: 40 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis

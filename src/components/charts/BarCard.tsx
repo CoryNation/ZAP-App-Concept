@@ -75,8 +75,8 @@ export default function BarCard({
           <Typography color="text.secondary">No data available</Typography>
         </Box>
       ) : (
-        <Box sx={{ width: '100%', height: chartHeight }}>
-          <ResponsiveContainer>
+        <Box sx={{ width: '100%', height: chartHeight, display: 'flex' }}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: isCompact ? 50 : 10 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
@@ -176,8 +176,8 @@ export default function BarCard({
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ width: '100%', height: 'calc(90vh - 120px)', minHeight: 400 }}>
-            <ResponsiveContainer>
+          <Box sx={{ width: '100%', height: 'calc(90vh - 120px)', minHeight: 400, display: 'flex' }}>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={fullData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis

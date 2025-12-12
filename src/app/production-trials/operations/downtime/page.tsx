@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { Stack, Grid, Card, CardContent, Typography, Chip, Box, CircularProgress } from '@mui/material';
 import { useRouter, useSearchParams } from 'next/navigation';
-import ProdPageHeader from '@/src/components/prod-trials/ProdPageHeader';
 import ProdSection from '@/src/components/prod-trials/ProdSection';
 import RawEventsTable from '@/src/components/prod-trials/RawEventsTable';
 import HistoricalEventsTable from '@/src/components/prod-trials/HistoricalEventsTable';
@@ -330,13 +329,6 @@ function ProductionTrialsDowntimePageInner() {
 
   return (
     <Stack spacing={3}>
-      {/* Production Trials Header */}
-      <ProdPageHeader
-        subtitle="PRODUCTION TRIALS"
-        title="Downtime Dashboard"
-        description="Recurring downtime events analysis and data interrogation for production trials"
-      />
-
       {/* Filter Bar */}
       <DowntimeFiltersBar />
 
@@ -504,11 +496,6 @@ export default function ProductionTrialsDowntimePage() {
   return (
     <Suspense fallback={
       <Stack spacing={3}>
-        <ProdPageHeader
-          subtitle="PRODUCTION TRIALS"
-          title="Downtime Dashboard"
-          description="Recurring downtime events analysis and data interrogation for production trials"
-        />
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
           <CircularProgress />
         </Box>

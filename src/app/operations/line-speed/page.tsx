@@ -184,8 +184,8 @@ export default function LineSpeedPage() {
           )}
 
           {!loading && !error && series.length > 0 && (
-            <Box sx={{ width: '100%', height: 500 }}>
-              <ResponsiveContainer>
+            <Box sx={{ width: '100%', height: 500, display: 'flex' }}>
+              <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={chartData}
                   margin={{ top: 10, right: 30, left: 10, bottom: 10 }}

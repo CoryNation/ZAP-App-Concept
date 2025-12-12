@@ -43,8 +43,8 @@ export default function ScatterCard({
             <Typography color="text.secondary">No data available</Typography>
           </Box>
         ) : (
-          <Box sx={{ width: '100%', height }}>
-            <ResponsiveContainer>
+          <Box sx={{ width: '100%', height, display: 'flex' }}>
+            <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 20, right: 20, bottom: 40, left: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" dataKey={xKey} name={xLabel || xKey} label={{ value: xLabel, position: 'bottom', offset: 20 }} />

@@ -142,8 +142,8 @@ export default function QualityPage() {
               Loading...
             </Box>
           ) : (
-            <Box sx={{ width: '100%', height: 350 }}>
-              <ResponsiveContainer>
+            <Box sx={{ width: '100%', height: 350, display: 'flex' }}>
+              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={controlChartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="time" tick={{ fontSize: 12 }} />

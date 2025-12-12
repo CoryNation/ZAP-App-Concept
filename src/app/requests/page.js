@@ -353,8 +353,8 @@ export default function WorkRequestsPage() {
                   />
                 </Stack>
               )}
-              <Box sx={{ height: 320 }}>
-                <ResponsiveContainer>
+              <Box sx={{ height: 320, display: 'flex' }}>
+                <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={dailySeries} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                     <CartesianGrid stroke={COLORS.grid} strokeDasharray="3 3" />
                     <XAxis dataKey="day" />

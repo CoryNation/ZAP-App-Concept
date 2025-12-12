@@ -38,8 +38,8 @@ export default function LineCard({
             <Typography color="text.secondary">No data available</Typography>
           </Box>
         ) : (
-          <Box sx={{ width: '100%', height }}>
-            <ResponsiveContainer>
+          <Box sx={{ width: '100%', height, display: 'flex' }}>
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey={xAxisKey} tick={{ fontSize: 12 }} />
