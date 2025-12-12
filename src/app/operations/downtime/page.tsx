@@ -1,20 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Stack, Typography, Grid, Button, Box, Card, CardContent, Chip } from '@mui/material';
+import { useEffect, useState, useMemo } from 'react';
+import { Stack, Typography, Grid, Button, Box } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { useRouter } from 'next/navigation';
 import { useGlobalFilters } from '@/src/lib/state/globalFilters';
 import { getDowntimePareto, getDowntimeTimeline } from '@/src/lib/services/downtimeService';
-import KpiTile from '@/src/components/common/KpiTile';
+import CompactKpiStrip from '@/src/components/common/CompactKpiStrip';
 import BarCard from '@/src/components/charts/BarCard';
+import TopCausesTable from '@/src/components/common/TopCausesTable';
+import RecentEventsTimeline from '@/src/components/common/RecentEventsTimeline';
 import { useModeRoute } from '@/src/lib/hooks/useModeRoute';
-
-const SEVERITY_COLORS = {
-  high: '#d32f2f',
-  medium: '#f57c00',
-  low: '#1976d2',
-};
 
 export default function DowntimePage() {
   const router = useRouter();
@@ -59,8 +55,29 @@ export default function DowntimePage() {
   const topCause = paretoData[0]?.cause || 'N/A';
   const meanDuration = totalEvents > 0 ? (totalHours / totalEvents * 60).toFixed(1) : 0;
 
+  // Calculate Top 5 Causes data with percentages
+  const topCausesData = useMemo(() => {
+    if (paretoData.length === 0) return [];
+    
+    const totalMinutes = totalHours * 60;
+    let cumulative = 0;
+    
+    return paretoData.slice(0, 5).map((item) => {
+      const minutes = item.hours * 60;
+      const percentage = totalMinutes > 0 ? (minutes / totalMinutes) * 100 : 0;
+      cumulative += percentage;
+      
+      return {
+        cause: item.cause,
+        minutes,
+        percentage,
+        cumulativePercentage: cumulative,
+      };
+    });
+  }, [paretoData, totalHours]);
+
   return (
-    <Stack spacing={3}>
+    <Stack spacing={2}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Typography variant="h5">Downtime Analysis</Typography>
         <Stack direction="row" spacing={1}>
@@ -81,91 +98,55 @@ export default function DowntimePage() {
         </Stack>
       </Stack>
 
-      {/* KPI Tiles */}
+      {/* Compact KPI Strip */}
+      <CompactKpiStrip
+        items={[
+          { label: 'Total Downtime', value: totalHours.toFixed(1), unit: 'hrs' },
+          { label: 'Events', value: totalEvents },
+          { label: 'Top Cause', value: topCause },
+          { label: 'Mean Duration', value: meanDuration, unit: 'min' },
+        ]}
+      />
+
+      {/* Pareto Chart and Top Causes - Side by Side */}
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={3}>
-          <KpiTile label="Total Downtime" value={totalHours.toFixed(1)} unit="hrs" />
+        <Grid item xs={12} md={8}>
+          <BarCard
+            title="Downtime by Cause (Pareto Analysis)"
+            data={paretoData}
+            dataKeys={[{ key: 'hours', color: '#1976d2', name: 'Hours' }]}
+            xAxisKey="cause"
+            yAxisLabel="Hours"
+            loading={loading}
+            height={200}
+            compact={true}
+          />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KpiTile label="Events" value={totalEvents} />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KpiTile label="Top Cause" value={topCause} />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KpiTile label="Mean Duration" value={meanDuration} unit="min" />
+        <Grid item xs={12} md={4}>
+          <TopCausesTable causes={topCausesData} maxRows={5} />
         </Grid>
       </Grid>
 
-      {/* Pareto Chart */}
-      <BarCard
-        title="Downtime by Cause (Pareto Analysis)"
-        data={paretoData}
-        dataKeys={[{ key: 'hours', color: '#1976d2', name: 'Hours' }]}
-        xAxisKey="cause"
-        yAxisLabel="Hours"
-        loading={loading}
-        height={350}
-      />
-
-      {/* Timeline / Gantt View */}
-      <Card>
-        <CardContent>
-          <Typography variant="subtitle1" sx={{ mb: 2 }}>
-            Recent Downtime Events (Timeline)
-          </Typography>
-          <Stack spacing={1}>
-            {timelineData.slice(0, 15).map((event, idx) => {
-              const start = new Date(event.start);
-              const end = new Date(event.end);
-              const durationMins = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
-              
-              return (
-                <Card key={idx} variant="outlined" sx={{ borderLeft: `4px solid ${SEVERITY_COLORS[(event.severity as 'high' | 'medium' | 'low') || 'low']}` }}>
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Chip label={event.line} size="small" color="primary" />
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {event.cause}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Typography variant="caption" color="text.secondary">
-                          {start.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </Typography>
-                        <Chip 
-                          label={`${durationMins} min`} 
-                          size="small" 
-                          variant="outlined"
-                          color={(event.severity as any) === 'high' ? 'error' : (event.severity as any) === 'medium' ? 'warning' : 'default'}
-                        />
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </Stack>
-        </CardContent>
-      </Card>
+      {/* Recent Downtime Events Timeline */}
+      <RecentEventsTimeline events={timelineData} maxEvents={15} />
 
       {/* Heatmap Placeholder (Day × Shift) */}
-      <Card>
-        <CardContent>
-          <Typography variant="subtitle1" sx={{ mb: 2 }}>
-            Downtime Heatmap (Day × Shift)
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Heatmap visualization coming soon - will show downtime intensity by day of week and shift.
-          </Typography>
-          <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1, textAlign: 'center' }}>
-            <Typography variant="caption" color="text.secondary">
-              [Day 1-7] × [Shift 1-3] matrix with color intensity showing downtime minutes
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
+      <Box
+        sx={{
+          p: 2,
+          bgcolor: 'background.paper',
+          borderRadius: 1,
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+          Downtime Heatmap (Day × Shift)
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Heatmap visualization coming soon - will show downtime intensity by day of week and shift.
+        </Typography>
+      </Box>
     </Stack>
   );
 }

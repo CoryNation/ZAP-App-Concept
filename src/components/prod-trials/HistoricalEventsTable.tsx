@@ -21,6 +21,7 @@ import {
   Chip,
   Paper,
 } from '@mui/material';
+import { useSearchParams } from 'next/navigation';
 import { useGlobalFilters, TimeRange } from '@/src/lib/state/globalFilters';
 import {
   SeedMillHistoricalEvent,
@@ -68,6 +69,7 @@ function convertTimeRangeToDates(
 }
 
 export default function HistoricalEventsTable({ initialMill }: HistoricalEventsTableProps) {
+  const searchParams = useSearchParams();
   const { factoryId, timeRange, customStartDate, customEndDate } = useGlobalFilters();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +77,12 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
   const [mills, setMills] = useState<string[]>([]);
   const [factoryName, setFactoryName] = useState<string | null>(null);
   const [factories, setFactories] = useState<Array<{ id: string; name: string }>>([]);
+  
+  // Read filters from URL params if available (for shared filter bar), otherwise use local state
+  const urlMill = searchParams.get('mill') || '';
+  const urlStartDate = searchParams.get('startDate') || '';
+  const urlEndDate = searchParams.get('endDate') || '';
+  const urlState = searchParams.get('state') || '';
   
   // Local filters (can be overridden by user) - default to "All" (empty string)
   const [mill, setMill] = useState<string>('');
@@ -90,9 +98,11 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
     [timeRange, customStartDate, customEndDate]
   );
   
-  // Use local dates if set, otherwise use global dates
-  const effectiveStartDate = localStartDate || globalStartDate.toISOString().split('T')[0];
-  const effectiveEndDate = localEndDate || globalEndDate.toISOString().split('T')[0];
+  // Use URL params if available, then local state, then global dates
+  const effectiveMill = urlMill || mill || (initialMill || '');
+  const effectiveStartDate = urlStartDate || localStartDate || globalStartDate.toISOString().split('T')[0];
+  const effectiveEndDate = urlEndDate || localEndDate || globalEndDate.toISOString().split('T')[0];
+  const effectiveState = urlState || state;
 
   // Load factories to map factoryId to factory name
   useEffect(() => {
@@ -168,8 +178,8 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
         });
 
         // Add mill filter only if a specific mill is selected (empty = All mills)
-        if (mill) {
-          params.append('mill', mill);
+        if (effectiveMill) {
+          params.append('mill', effectiveMill);
         }
 
         // Add factory filter if factory is selected
@@ -178,8 +188,8 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
         }
 
         // Only add state filter if a specific state is selected (empty = All)
-        if (state) {
-          params.append('state', state);
+        if (effectiveState) {
+          params.append('state', effectiveState);
         }
 
         const response = await fetch(`/api/seed-mill-historical?${params.toString()}`);
@@ -199,7 +209,7 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
     }
 
     loadEvents();
-  }, [mill, factoryName, effectiveStartDate, effectiveEndDate, state, page, pageSize]);
+  }, [effectiveMill, factoryName, effectiveStartDate, effectiveEndDate, effectiveState, page, pageSize]);
   
   // Reset local dates when global filters change (so table syncs with global filters)
   useEffect(() => {
@@ -249,71 +259,75 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
     <Card>
       <CardContent>
         <Stack spacing={3}>
-          {/* Filters */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              select
-              label="Mill"
-              value={mill}
-              onChange={(e) => {
-                setMill(e.target.value);
-                setPage(0);
-              }}
-              size="small"
-              sx={{ minWidth: 120 }}
-            >
-              <MenuItem value="">(All)</MenuItem>
-              {mills.map((m) => (
-                <MenuItem key={m} value={m}>
-                  {m}
-                </MenuItem>
-              ))}
-            </TextField>
+          {/* Filters - Only show if URL params are not being used (i.e., not in tabbed layout) */}
+          {!urlMill && !urlStartDate && !urlEndDate && !urlState && (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                select
+                label="Mill"
+                value={mill}
+                onChange={(e) => {
+                  setMill(e.target.value);
+                  setPage(0);
+                }}
+                size="small"
+                sx={{ minWidth: 120 }}
+              >
+                <MenuItem value="">(All)</MenuItem>
+                {mills.map((m) => (
+                  <MenuItem key={m} value={m}>
+                    {m}
+                  </MenuItem>
+                ))}
+              </TextField>
 
-            <TextField
-              type="date"
-              label="Start Date"
-              value={effectiveStartDate}
-              onChange={(e) => {
-                setLocalStartDate(e.target.value);
-                setPage(0);
-              }}
-              size="small"
-              InputLabelProps={{ shrink: true }}
-            />
+              <TextField
+                type="date"
+                label="Start Date"
+                value={effectiveStartDate}
+                onChange={(e) => {
+                  setLocalStartDate(e.target.value);
+                  setPage(0);
+                }}
+                size="small"
+                InputLabelProps={{ shrink: true }}
+              />
 
-            <TextField
-              type="date"
-              label="End Date"
-              value={effectiveEndDate}
-              onChange={(e) => {
-                setLocalEndDate(e.target.value);
-                setPage(0);
-              }}
-              size="small"
-              InputLabelProps={{ shrink: true }}
-            />
+              <TextField
+                type="date"
+                label="End Date"
+                value={effectiveEndDate}
+                onChange={(e) => {
+                  setLocalEndDate(e.target.value);
+                  setPage(0);
+                }}
+                size="small"
+                InputLabelProps={{ shrink: true }}
+              />
 
-            <TextField
-              select
-              label="State"
-              value={state}
-              onChange={(e) => {
-                setState(e.target.value);
-                setPage(0);
-              }}
-              size="small"
-              sx={{ minWidth: 140 }}
-              displayEmpty
-            >
-              <MenuItem value="">(All)</MenuItem>
-              {VALID_STATES.map((stateValue) => (
-                <MenuItem key={stateValue} value={stateValue}>
-                  {stateValue.charAt(0) + stateValue.slice(1).toLowerCase()}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
+              <TextField
+                select
+                label="State"
+                value={state}
+                onChange={(e) => {
+                  setState(e.target.value);
+                  setPage(0);
+                }}
+                size="small"
+                sx={{ minWidth: 140 }}
+                SelectProps={{
+                  displayEmpty: true,
+                }}
+              >
+                <MenuItem value="">(All)</MenuItem>
+                {VALID_STATES.map((stateValue) => (
+                  <MenuItem key={stateValue} value={stateValue}>
+                    {stateValue.charAt(0) + stateValue.slice(1).toLowerCase()}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
+          )}
 
           {/* Loading State */}
           {loading && (

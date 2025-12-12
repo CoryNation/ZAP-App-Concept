@@ -35,7 +35,13 @@ export interface HistoricalEventsFilters {
   factory?: string; // Optional: filter by factory name
   startDate?: string; // ISO date string
   endDate?: string; // ISO date string
-  state?: string; // Optional filter by state
+  state?: string | string[]; // Optional filter by state (single or array for multi-select)
+  reason?: string[]; // Optional multi-select filter by reason
+  category?: string[]; // Optional multi-select filter by category
+  equipment?: string[]; // Optional multi-select filter by equipment
+  search?: string; // Global search across reason/category/subcategory/equipment/comment/product_spec
+  sortBy?: string; // Column to sort by
+  sortOrder?: 'asc' | 'desc'; // Sort direction
   page?: number; // For pagination
   pageSize?: number; // Default: 50
 }
@@ -60,6 +66,12 @@ export async function getHistoricalEvents(
     startDate,
     endDate,
     state,
+    reason,
+    category,
+    equipment,
+    search,
+    sortBy = 'event_time',
+    sortOrder = 'desc',
     page = 1,
     pageSize = 50,
   } = filters;
@@ -82,13 +94,80 @@ export async function getHistoricalEvents(
       allEvents = allEvents.filter(e => e.factory === factory);
     }
     
-    // Apply state filter if specified
+    // Apply state filter (support array or single value)
     if (state) {
-      allEvents = allEvents.filter(e => e.state.toUpperCase() === state.toUpperCase());
+      const states = Array.isArray(state) ? state : [state];
+      allEvents = allEvents.filter(e => 
+        states.some(s => e.state.toUpperCase() === s.toUpperCase())
+      );
     }
     
-    // Sort by event_time descending
-    allEvents.sort((a, b) => new Date(b.event_time).getTime() - new Date(a.event_time).getTime());
+    // Apply reason filter
+    if (reason && reason.length > 0) {
+      allEvents = allEvents.filter(e => 
+        e.reason && reason.some(r => e.reason.toLowerCase().includes(r.toLowerCase()))
+      );
+    }
+    
+    // Apply category filter
+    if (category && category.length > 0) {
+      allEvents = allEvents.filter(e => 
+        e.category && category.includes(e.category)
+      );
+    }
+    
+    // Apply equipment filter
+    if (equipment && equipment.length > 0) {
+      allEvents = allEvents.filter(e => 
+        e.equipment && equipment.includes(e.equipment)
+      );
+    }
+    
+    // Apply global search
+    if (search && search.trim()) {
+      const searchLower = search.toLowerCase();
+      allEvents = allEvents.filter(e => 
+        (e.reason && e.reason.toLowerCase().includes(searchLower)) ||
+        (e.category && e.category.toLowerCase().includes(searchLower)) ||
+        (e.sub_category && e.sub_category.toLowerCase().includes(searchLower)) ||
+        (e.equipment && e.equipment.toLowerCase().includes(searchLower)) ||
+        (e.comment && e.comment.toLowerCase().includes(searchLower)) ||
+        (e.product_spec && e.product_spec.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // Sort
+    const sortField = sortBy || 'event_time';
+    const ascending = sortOrder === 'asc';
+    allEvents.sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+      
+      // Handle null/undefined values
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      
+      // Handle dates
+      if (sortField === 'event_time') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      }
+      
+      // Handle numbers
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return ascending ? aVal - bVal : bVal - aVal;
+      }
+      
+      // Handle strings
+      const aStr = String(aVal).toLowerCase();
+      const bStr = String(bVal).toLowerCase();
+      if (ascending) {
+        return aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
+      } else {
+        return aStr > bStr ? -1 : aStr < bStr ? 1 : 0;
+      }
+    });
     
     const total = allEvents.length;
     const totalPages = Math.ceil(total / pageSize);
@@ -126,18 +205,55 @@ export async function getHistoricalEvents(
       query = query.lte('event_time', endDate);
     }
 
+    // Apply state filter (support array or single value)
     if (state) {
-      // Validate state value matches Supabase constraint
-      const normalizedState = state.toUpperCase();
-      if (VALID_STATES.includes(normalizedState as any)) {
-        query = query.eq('state', normalizedState);
-      } else {
-        console.warn(`Invalid state value: ${state}. Valid states are: ${VALID_STATES.join(', ')}`);
+      const states = Array.isArray(state) ? state : [state];
+      const validStates = states.filter(s => VALID_STATES.includes(s.toUpperCase() as any));
+      if (validStates.length > 0) {
+        if (validStates.length === 1) {
+          query = query.eq('state', validStates[0].toUpperCase());
+        } else {
+          query = query.in('state', validStates.map(s => s.toUpperCase()));
+        }
       }
     }
 
-    // Order by event_time descending (most recent first)
-    query = query.order('event_time', { ascending: false });
+    // Apply reason filter (multi-select) - use OR for partial matches
+    if (reason && reason.length > 0) {
+      const reasonFilters = reason.map(r => `reason.ilike.%${r}%`).join(',');
+      query = query.or(reasonFilters);
+    }
+
+    // Apply category filter (multi-select)
+    if (category && category.length > 0) {
+      query = query.in('category', category);
+    }
+
+    // Apply equipment filter (multi-select)
+    if (equipment && equipment.length > 0) {
+      query = query.in('equipment', equipment);
+    }
+
+    // Apply global search (across multiple fields)
+    // Use Supabase or() with proper syntax: field.operator.value,field.operator.value
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      // Build OR condition for multiple fields
+      const searchConditions = [
+        `reason.ilike.%${searchTerm}%`,
+        `category.ilike.%${searchTerm}%`,
+        `sub_category.ilike.%${searchTerm}%`,
+        `equipment.ilike.%${searchTerm}%`,
+        `comment.ilike.%${searchTerm}%`,
+        `product_spec.ilike.%${searchTerm}%`,
+      ].join(',');
+      query = query.or(searchConditions);
+    }
+
+    // Apply sorting
+    const sortField = sortBy || 'event_time';
+    const ascending = sortOrder === 'asc';
+    query = query.order(sortField, { ascending });
 
     // Pagination
     const from = (page - 1) * pageSize;
@@ -178,7 +294,10 @@ export async function getHistoricalEvents(
     }
     
     if (state) {
-      allEvents = allEvents.filter(e => e.state.toUpperCase() === state.toUpperCase());
+      const states = Array.isArray(state) ? state : [state];
+      allEvents = allEvents.filter(e => 
+        states.some(s => e.state.toUpperCase() === s.toUpperCase())
+      );
     }
     
     allEvents.sort((a, b) => new Date(b.event_time).getTime() - new Date(a.event_time).getTime());
@@ -258,8 +377,14 @@ export async function getDefaultDateRange(mill: string = 'Mill 1'): Promise<{
 /**
  * Get available mills from historical data
  * @param factory Optional factory name to filter mills by
+ * @param startDate Optional start date to filter mills by date range
+ * @param endDate Optional end date to filter mills by date range
  */
-export async function getAvailableMills(factory?: string): Promise<string[]> {
+export async function getAvailableMills(
+  factory?: string,
+  startDate?: string,
+  endDate?: string
+): Promise<string[]> {
   // In demo mode, return standard mills
   if (isDemoMode()) {
     return ['Mill 1', 'Mill 2', 'Mill 3', 'Mill 4'];
@@ -275,6 +400,15 @@ export async function getAvailableMills(factory?: string): Promise<string[]> {
       query = query.eq('factory', factory);
     }
     
+    // Filter by date range if provided
+    if (startDate) {
+      query = query.gte('event_time', startDate);
+    }
+    
+    if (endDate) {
+      query = query.lte('event_time', endDate);
+    }
+    
     query = query.order('mill');
 
     const { data, error } = await query;
@@ -288,10 +422,111 @@ export async function getAvailableMills(factory?: string): Promise<string[]> {
       (mill): mill is string => typeof mill === 'string' && mill.length > 0
     );
 
-    return mills.length > 0 ? mills.sort() : ['Mill 1', 'Mill 2', 'Mill 3', 'Mill 4']; // Fallback if empty
+    return mills.sort(); // Return sorted mills (empty array if none found)
   } catch (err) {
-    console.error('Error fetching available mills, using fallback:', err);
-    return ['Mill 1', 'Mill 2', 'Mill 3', 'Mill 4']; // Fallback
+    console.error('Error fetching available mills:', err);
+    return []; // Return empty array on error (let caller handle fallback)
+  }
+}
+
+/**
+ * Get unique values for filter dropdowns
+ */
+export async function getFilterValues(
+  field: 'reason' | 'category' | 'equipment',
+  factory?: string,
+  startDate?: string,
+  endDate?: string
+): Promise<string[]> {
+  if (isDemoMode()) {
+    // Return demo values
+    switch (field) {
+      case 'reason':
+        return ['Changeover', 'Material Shortage', 'Equipment Failure', 'Planned Maintenance', 'Quality Issue'];
+      case 'category':
+        return ['Maintenance', 'Material', 'Quality', 'Changeover', 'Other'];
+      case 'equipment':
+        return ['Mill 1', 'Mill 2', 'Mill 3', 'Mill 4', 'Conveyor', 'Press'];
+      default:
+        return [];
+    }
+  }
+
+  try {
+    let query = supabase
+      .from('seed_mill_events_historical')
+      .select(field);
+
+    if (factory) {
+      query = query.eq('factory', factory);
+    }
+
+    if (startDate) {
+      query = query.gte('event_time', startDate);
+    }
+
+    if (endDate) {
+      query = query.lte('event_time', endDate);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    // Get unique non-null values
+    const values = Array.from(
+      new Set((data || []).map((row: any) => row[field]).filter((v): v is string => v != null && v !== ''))
+    ).sort();
+
+    return values;
+  } catch (err) {
+    console.error(`Error fetching ${field} values:`, err);
+    return [];
+  }
+}
+
+/**
+ * Get related events (same equipment within ±2 hours)
+ */
+export async function getRelatedEvents(
+  eventId: string,
+  equipment: string | null,
+  eventTime: string
+): Promise<SeedMillHistoricalEvent[]> {
+  if (!equipment) {
+    return [];
+  }
+
+  const eventDate = new Date(eventTime);
+  const twoHoursBefore = new Date(eventDate.getTime() - 2 * 60 * 60 * 1000);
+  const twoHoursAfter = new Date(eventDate.getTime() + 2 * 60 * 60 * 1000);
+
+  if (isDemoMode()) {
+    // In demo mode, return empty array (would need to generate related events)
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('seed_mill_events_historical')
+      .select('*')
+      .eq('equipment', equipment)
+      .gte('event_time', twoHoursBefore.toISOString())
+      .lte('event_time', twoHoursAfter.toISOString())
+      .neq('id', eventId)
+      .order('event_time', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      throw error;
+    }
+
+    return (data as SeedMillHistoricalEvent[]) || [];
+  } catch (err) {
+    console.error('Error fetching related events:', err);
+    return [];
   }
 }
 
