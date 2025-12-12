@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useGlobalFilters } from '@/src/lib/state/globalFilters';
+import { useAppMode } from '@/src/lib/contexts/ModeProvider';
+import { modeRoute } from '@/src/lib/utils/modeRouter';
 import {
   Stack, Typography, Grid, Paper, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
@@ -16,7 +18,16 @@ import { PlantKpis } from '@/src/lib/types';
 
 export default function Home() {
   const router = useRouter();
+  const { mode } = useAppMode();
   const { factoryId, lineId, timeRange, customStartDate, customEndDate } = useGlobalFilters();
+  
+  // Redirect to downtime dashboard if in Production Trials mode
+  useEffect(() => {
+    if (mode === 'prod_trials') {
+      router.replace(modeRoute('/operations/downtime', mode));
+    }
+  }, [mode, router]);
+
   const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   
@@ -130,6 +141,11 @@ export default function Home() {
   const handleCancelEdit = () => {
     setEditDialogOpen(false);
   };
+
+  // Don't render home page content if in Production Trials mode (will redirect)
+  if (mode === 'prod_trials') {
+    return null;
+  }
 
   if (!ready) return <div>Loading…</div>;
 

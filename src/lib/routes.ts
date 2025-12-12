@@ -11,8 +11,8 @@ export interface RouteItem {
   children?: RouteItem[];
 }
 
-// Base route definitions (without mode prefix)
-const baseRoutes: RouteItem[] = [
+// Base route definitions for POC mode (without mode prefix)
+const pocRoutes: RouteItem[] = [
   {
     label: 'Home',
     href: '/',
@@ -83,6 +83,14 @@ const baseRoutes: RouteItem[] = [
   },
 ];
 
+// Base route definitions for Production Trials mode
+const prodTrialsRoutes: RouteItem[] = [
+  {
+    label: 'Downtime Dashboard',
+    href: '/operations/downtime',
+  },
+];
+
 /**
  * Get mode-aware routes for navigation
  * 
@@ -90,6 +98,9 @@ const baseRoutes: RouteItem[] = [
  * @returns Routes with hrefs prefixed based on mode
  */
 export function getRoutes(mode: AppMode): RouteItem[] {
+  // Use different route sets based on mode
+  const baseRoutes = mode === 'prod_trials' ? prodTrialsRoutes : pocRoutes;
+  
   return baseRoutes.map(route => {
     // Section headers and dividers don't have hrefs, return as-is
     if (route.section || route.divider || !route.href) {

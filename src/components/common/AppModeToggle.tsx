@@ -1,14 +1,27 @@
 'use client';
 
 import { ToggleButton, ToggleButtonGroup, Badge, Box, Tooltip } from '@mui/material';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAppMode, AppMode } from '@/src/lib/contexts/ModeProvider';
+import { modeRoute, baseRoute } from '@/src/lib/utils/modeRouter';
 
 export default function AppModeToggle() {
   const { mode, setMode } = useAppMode();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const handleChange = (_event: React.MouseEvent<HTMLElement>, newMode: AppMode | null) => {
-    if (newMode !== null) {
+    if (newMode !== null && newMode !== mode) {
       setMode(newMode);
+      
+      // Navigate to appropriate page based on mode
+      if (newMode === 'prod_trials') {
+        // Switch to Production Trials: go to downtime dashboard
+        router.push(modeRoute('/operations/downtime', newMode));
+      } else {
+        // Switch to POC: go to home
+        router.push('/');
+      }
     }
   };
 
