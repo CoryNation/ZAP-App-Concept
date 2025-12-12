@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Stack, TextField, MenuItem, Box, Button, Typography } from '@mui/material';
+import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
+import { Stack, TextField, MenuItem, Box, Button, Typography, CircularProgress } from '@mui/material';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useGlobalFilters, TimeRange } from '@/src/lib/state/globalFilters';
 import { supabase } from '@/lib/supabaseClient';
@@ -50,7 +50,7 @@ function convertTimeRangeToDates(
   };
 }
 
-export default function DowntimeFiltersBar({ onFiltersChange }: DowntimeFiltersBarProps) {
+function DowntimeFiltersBarInner({ onFiltersChange }: DowntimeFiltersBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -331,6 +331,22 @@ export default function DowntimeFiltersBar({ onFiltersChange }: DowntimeFiltersB
         ))}
       </TextField>
     </Stack>
+  );
+}
+
+/**
+ * Downtime Filters Bar Component
+ * Wrapped in Suspense to satisfy Next.js requirement for useSearchParams()
+ */
+export default function DowntimeFiltersBar({ onFiltersChange }: DowntimeFiltersBarProps) {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+        <CircularProgress size={24} />
+      </Box>
+    }>
+      <DowntimeFiltersBarInner onFiltersChange={onFiltersChange} />
+    </Suspense>
   );
 }
 

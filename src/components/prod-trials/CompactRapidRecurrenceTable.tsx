@@ -13,11 +13,17 @@ import {
   CardContent,
 } from '@mui/material';
 
+/**
+ * Interface for rapid recurrence reason data
+ */
 interface RapidRecurrenceReason {
   reason: string;
   count: number;
 }
 
+/**
+ * Interface for rapid recurrence reason pair data
+ */
 interface RapidRecurrencePair {
   preceding: string;
   subsequent: string;
@@ -25,15 +31,67 @@ interface RapidRecurrencePair {
   avgRuntimeBetween: number;
 }
 
+/**
+ * Props for CompactRapidRecurrenceTable component
+ */
 interface CompactRapidRecurrenceTableProps {
+  /** Table title displayed in header */
   title: string;
+  /** Array of reasons (used when displaying reason list) */
   reasons?: RapidRecurrenceReason[];
+  /** Array of reason pairs (used when displaying pair analysis) */
   pairs?: RapidRecurrencePair[];
+  /** Maximum number of rows to display (default: 8) */
   maxRows?: number;
+  /** Optional click handler for reason rows */
   onReasonClick?: (reason: string) => void;
+  /** Optional click handler for pair rows */
   onPairClick?: (preceding: string, subsequent: string) => void;
+  /** Loading state indicator */
   loading?: boolean;
 }
+
+/**
+ * Flexible compact table component for displaying rapid recurrence data
+ * 
+ * This component can display either:
+ * - A list of reasons with occurrence counts
+ * - A list of reason pairs (preceding → subsequent) with counts and average runtime
+ * 
+ * The component automatically detects which mode to use based on which prop is provided.
+ * Designed for dashboard overview sections where space is limited.
+ * 
+ * @param props - Component props
+ * @param props.title - Table title displayed in header
+ * @param props.reasons - Array of reasons (mutually exclusive with pairs)
+ * @param props.pairs - Array of reason pairs (mutually exclusive with reasons)
+ * @param props.maxRows - Maximum number of rows to display (default: 8)
+ * @param props.onReasonClick - Optional callback when a reason row is clicked
+ * @param props.onPairClick - Optional callback when a pair row is clicked
+ * @param props.loading - Loading state indicator
+ * 
+ * @example
+ * ```tsx
+ * // Display reasons
+ * <CompactRapidRecurrenceTable
+ *   title="Top Preceding Reasons"
+ *   reasons={[
+ *     { reason: 'Equipment Failure', count: 15 },
+ *     { reason: 'Material Issue', count: 8 }
+ *   ]}
+ *   onReasonClick={(reason) => handleClick(reason)}
+ * />
+ * 
+ * // Display pairs
+ * <CompactRapidRecurrenceTable
+ *   title="Top Reason Pairs"
+ *   pairs={[
+ *     { preceding: 'Equipment Failure', subsequent: 'Material Issue', count: 5, avgRuntimeBetween: 12.5 }
+ *   ]}
+ *   onPairClick={(prec, sub) => handlePairClick(prec, sub)}
+ * />
+ * ```
+ */
 
 export default function CompactRapidRecurrenceTable({
   title,

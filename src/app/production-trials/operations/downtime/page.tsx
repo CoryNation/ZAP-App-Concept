@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { Stack, Grid, Card, CardContent, Typography, Chip, Box, CircularProgress } from '@mui/material';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProdPageHeader from '@/src/components/prod-trials/ProdPageHeader';
@@ -38,7 +38,7 @@ const SEVERITY_COLORS = {
   low: '#1976d2',
 };
 
-export default function ProductionTrialsDowntimePage() {
+function ProductionTrialsDowntimePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { factoryId, lineId, timeRange, customStartDate, customEndDate } = useGlobalFilters();
@@ -311,15 +311,20 @@ export default function ProductionTrialsDowntimePage() {
   const handleReasonClick = (reason: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', 'raw-data');
-    // Note: RawEventsTable uses its own local filter state, so we'll need to pass it via URL params
-    // For now, we'll just navigate to the tab - filter integration would require RawEventsTable updates
+    params.set('reason', reason);
+    // Clear pair filters when setting reason filter
+    params.delete('precedingReason');
+    params.delete('subsequentReason');
     router.push(`?${params.toString()}`);
   };
 
   const handlePairClick = (preceding: string, subsequent: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', 'raw-data');
-    // Similar to reason click - would need RawEventsTable updates for full filter integration
+    params.set('precedingReason', preceding);
+    params.set('subsequentReason', subsequent);
+    // Clear single reason filter when setting pair filters
+    params.delete('reason');
     router.push(`?${params.toString()}`);
   };
 
@@ -488,6 +493,29 @@ export default function ProductionTrialsDowntimePage() {
         </DowntimeTabs>
       </ErrorBoundary>
     </Stack>
+  );
+}
+
+/**
+ * Production Trials Downtime Page
+ * Wrapped in Suspense to satisfy Next.js requirement for useSearchParams()
+ */
+export default function ProductionTrialsDowntimePage() {
+  return (
+    <Suspense fallback={
+      <Stack spacing={3}>
+        <ProdPageHeader
+          subtitle="PRODUCTION TRIALS"
+          title="Downtime Dashboard"
+          description="Recurring downtime events analysis and data interrogation for production trials"
+        />
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      </Stack>
+    }>
+      <ProductionTrialsDowntimePageInner />
+    </Suspense>
   );
 }
 

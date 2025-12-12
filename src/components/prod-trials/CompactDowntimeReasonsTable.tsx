@@ -14,6 +14,9 @@ import {
   CardContent,
 } from '@mui/material';
 
+/**
+ * Interface for downtime reason data
+ */
 interface DowntimeReason {
   reason: string;
   minutes: number;
@@ -21,12 +24,46 @@ interface DowntimeReason {
   avgDuration: number;
 }
 
+/**
+ * Props for CompactDowntimeReasonsTable component
+ */
 interface CompactDowntimeReasonsTableProps {
+  /** Array of downtime reasons with statistics */
   reasons: DowntimeReason[];
+  /** Maximum number of rows to display (default: 8) */
   maxRows?: number;
+  /** Optional click handler for reason rows */
   onReasonClick?: (reason: string) => void;
+  /** Loading state indicator */
   loading?: boolean;
 }
+
+/**
+ * Compact table component for displaying top downtime reasons
+ * 
+ * Displays a compact, scrollable table showing the top downtime reasons with
+ * statistics including total minutes, event count, and average duration.
+ * Designed for use in dashboard overview sections where space is limited.
+ * 
+ * @param props - Component props
+ * @param props.reasons - Array of downtime reasons with statistics
+ * @param props.maxRows - Maximum number of rows to display (default: 8)
+ * @param props.onReasonClick - Optional callback when a reason row is clicked
+ * @param props.loading - Loading state indicator
+ * 
+ * @example
+ * ```tsx
+ * <CompactDowntimeReasonsTable
+ *   reasons={[
+ *     { reason: 'Equipment Failure', minutes: 120, events: 5, avgDuration: 24 },
+ *     { reason: 'Material Issue', minutes: 90, events: 3, avgDuration: 30 }
+ *   ]}
+ *   maxRows={8}
+ *   onReasonClick={(reason) => console.log('Clicked:', reason)}
+ *   loading={false}
+ * />
+ * ```
+ */
 
 export default function CompactDowntimeReasonsTable({
   reasons,

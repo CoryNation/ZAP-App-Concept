@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import {
   Card,
   CardContent,
@@ -68,7 +68,7 @@ function convertTimeRangeToDates(
   };
 }
 
-export default function HistoricalEventsTable({ initialMill }: HistoricalEventsTableProps) {
+function HistoricalEventsTableInner({ initialMill }: HistoricalEventsTableProps) {
   const searchParams = useSearchParams();
   const { factoryId, timeRange, customStartDate, customEndDate } = useGlobalFilters();
   const [loading, setLoading] = useState(true);
@@ -406,6 +406,26 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
         </Stack>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Historical Events Table Component
+ * Wrapped in Suspense to satisfy Next.js requirement for useSearchParams()
+ */
+export default function HistoricalEventsTable({ initialMill }: HistoricalEventsTableProps) {
+  return (
+    <Suspense fallback={
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        </CardContent>
+      </Card>
+    }>
+      <HistoricalEventsTableInner initialMill={initialMill} />
+    </Suspense>
   );
 }
 

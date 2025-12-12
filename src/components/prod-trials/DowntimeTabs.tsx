@@ -1,7 +1,7 @@
 'use client';
 
-import { ReactNode } from 'react';
-import { Tabs, Tab, Box } from '@mui/material';
+import { ReactNode, Suspense } from 'react';
+import { Tabs, Tab, Box, CircularProgress } from '@mui/material';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 interface TabPanelProps {
@@ -35,7 +35,7 @@ interface DowntimeTabsProps {
   };
 }
 
-export default function DowntimeTabs({ children }: DowntimeTabsProps) {
+function DowntimeTabsInner({ children }: DowntimeTabsProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -97,6 +97,22 @@ export default function DowntimeTabs({ children }: DowntimeTabsProps) {
         {children.rawData}
       </TabPanel>
     </Box>
+  );
+}
+
+/**
+ * Downtime Tabs Component
+ * Wrapped in Suspense to satisfy Next.js requirement for useSearchParams()
+ */
+export default function DowntimeTabs({ children }: DowntimeTabsProps) {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    }>
+      <DowntimeTabsInner>{children}</DowntimeTabsInner>
+    </Suspense>
   );
 }
 

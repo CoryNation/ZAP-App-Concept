@@ -1,19 +1,66 @@
 import { Stack, Typography, Box, Chip, Divider } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
+/**
+ * Interface for a recent downtime event
+ */
 interface RecentEvent {
+  /** Event start time (ISO date string) */
   start: string;
+  /** Event end time (ISO date string) */
   end: string;
+  /** Production line identifier */
   line: string;
+  /** Downtime cause/reason */
   cause: string;
+  /** Optional severity level */
   severity?: 'low' | 'medium' | 'high';
+  /** Optional additional notes */
   notes?: string;
 }
 
+/**
+ * Props for RecentEventsTimeline component
+ */
 interface RecentEventsTimelineProps {
+  /** Array of recent downtime events */
   events: RecentEvent[];
+  /** Maximum number of events to display (default: 15) */
   maxEvents?: number;
 }
+
+/**
+ * Timeline component for displaying recent downtime events
+ * 
+ * Displays a vertical timeline of recent downtime events with:
+ * - Color-coded severity indicators (high=red, medium=orange, low=blue)
+ * - Formatted timestamps
+ * - Duration calculations
+ * - Line and cause information
+ * 
+ * Events are displayed in chronological order (most recent first) with
+ * visual indicators for severity levels.
+ * 
+ * @param props - Component props
+ * @param props.events - Array of recent downtime events
+ * @param props.maxEvents - Maximum number of events to display (default: 15)
+ * 
+ * @example
+ * ```tsx
+ * <RecentEventsTimeline
+ *   events={[
+ *     {
+ *       start: '2024-01-15T10:00:00Z',
+ *       end: '2024-01-15T10:30:00Z',
+ *       line: 'Line A',
+ *       cause: 'Equipment Failure',
+ *       severity: 'high'
+ *     }
+ *   ]}
+ *   maxEvents={15}
+ * />
+ * ```
+ */
 
 const SEVERITY_COLORS = {
   high: '#d32f2f',

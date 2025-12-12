@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import {
   Card,
   CardContent,
@@ -49,6 +49,7 @@ import {
 } from '@/src/lib/services/seedMillHistoricalService';
 import { supabase } from '@/lib/supabaseClient';
 import { VALID_STATES } from '@/src/lib/constants/stateConstants';
+import { useSearchParams } from 'next/navigation';
 
 interface RawEventsTableProps {
   initialMill?: string;
@@ -111,8 +112,9 @@ function convertTimeRangeToDates(
   };
 }
 
-export default function RawEventsTable({ initialMill }: RawEventsTableProps) {
+function RawEventsTableInner({ initialMill }: RawEventsTableProps) {
   const { factoryId, timeRange, customStartDate, customEndDate } = useGlobalFilters();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<HistoricalEventsResponse | null>(null);
@@ -120,12 +122,24 @@ export default function RawEventsTable({ initialMill }: RawEventsTableProps) {
   const [factoryName, setFactoryName] = useState<string | null>(null);
   const [factories, setFactories] = useState<Array<{ id: string; name: string }>>([]);
   
+  // Read initial filter values from URL params (for deep-linking)
+  const urlReason = searchParams.get('reason');
+  const urlPrecedingReason = searchParams.get('precedingReason');
+  const urlSubsequentReason = searchParams.get('subsequentReason');
+  
   // Filters
-  const [mill, setMill] = useState<string>('');
+  const [mill, setMill] = useState<string>(initialMill || '');
   const [localStartDate, setLocalStartDate] = useState<string>('');
   const [localEndDate, setLocalEndDate] = useState<string>('');
   const [state, setState] = useState<string[]>([]);
-  const [reason, setReason] = useState<string[]>([]);
+  // Initialize reason from URL params if present
+  const [reason, setReason] = useState<string[]>(() => {
+    const reasons: string[] = [];
+    if (urlReason) reasons.push(urlReason);
+    if (urlPrecedingReason) reasons.push(urlPrecedingReason);
+    if (urlSubsequentReason) reasons.push(urlSubsequentReason);
+    return reasons.length > 0 ? reasons : [];
+  });
   const [category, setCategory] = useState<string[]>([]);
   const [equipment, setEquipment] = useState<string[]>([]);
   const [search, setSearch] = useState<string>('');
@@ -340,6 +354,22 @@ export default function RawEventsTable({ initialMill }: RawEventsTableProps) {
     setLocalEndDate('');
     setPage(0);
   }, [timeRange, customStartDate, customEndDate, factoryId]);
+
+  // Sync reason filter with URL params (for deep-linking)
+  useEffect(() => {
+    const urlReason = searchParams.get('reason');
+    const urlPrecedingReason = searchParams.get('precedingReason');
+    const urlSubsequentReason = searchParams.get('subsequentReason');
+    
+    if (urlReason || urlPrecedingReason || urlSubsequentReason) {
+      const reasons: string[] = [];
+      if (urlReason) reasons.push(urlReason);
+      if (urlPrecedingReason) reasons.push(urlPrecedingReason);
+      if (urlSubsequentReason) reasons.push(urlSubsequentReason);
+      setReason(reasons);
+      setPage(0); // Reset to first page when filter changes
+    }
+  }, [searchParams]);
 
   const handlePageChange = (_event: unknown, newPage: number) => {
     setPage(newPage);
@@ -1068,6 +1098,26 @@ export default function RawEventsTable({ initialMill }: RawEventsTableProps) {
         )}
       </Drawer>
     </>
+  );
+}
+
+/**
+ * Raw Events Table Component
+ * Wrapped in Suspense to satisfy Next.js requirement for useSearchParams()
+ */
+export default function RawEventsTable({ initialMill }: RawEventsTableProps) {
+  return (
+    <Suspense fallback={
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        </CardContent>
+      </Card>
+    }>
+      <RawEventsTableInner initialMill={initialMill} />
+    </Suspense>
   );
 }
 

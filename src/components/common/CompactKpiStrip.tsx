@@ -1,14 +1,47 @@
 import { Box, Stack, Typography, useTheme, useMediaQuery } from '@mui/material';
 
+/**
+ * Interface for a single KPI item
+ */
 interface CompactKpiItem {
+  /** Display label for the KPI */
   label: string;
+  /** KPI value (can be string or number) */
   value: string | number;
+  /** Optional unit to display after the value (e.g., 'hrs', 'min') */
   unit?: string;
 }
 
+/**
+ * Props for CompactKpiStrip component
+ */
 interface CompactKpiStripProps {
+  /** Array of KPI items to display */
   items: CompactKpiItem[];
 }
+
+/**
+ * Compact horizontal KPI display component
+ * 
+ * Displays multiple KPIs in a horizontal strip layout. Automatically adjusts
+ * to a vertical stack layout on mobile devices for better responsiveness.
+ * Each KPI shows a label, value, and optional unit.
+ * 
+ * @param props - Component props
+ * @param props.items - Array of KPI items to display
+ * 
+ * @example
+ * ```tsx
+ * <CompactKpiStrip
+ *   items={[
+ *     { label: 'Total Downtime', value: 45.5, unit: 'hrs' },
+ *     { label: 'Events', value: 23 },
+ *     { label: 'Top Cause', value: 'Equipment Failure' },
+ *     { label: 'Mean Duration', value: 118.7, unit: 'min' }
+ *   ]}
+ * />
+ * ```
+ */
 
 export default function CompactKpiStrip({ items }: CompactKpiStripProps) {
   const theme = useTheme();
