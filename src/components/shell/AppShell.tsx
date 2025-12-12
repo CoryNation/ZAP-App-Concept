@@ -38,9 +38,7 @@ export default function AppShell({ children }: AppShellProps) {
   // Global filters from Zustand
   const { factoryId, lineId, timeRange, customStartDate, customEndDate, setFactoryId, setLineId, setTimeRange, setCustomDateRange } = useGlobalFilters();
   
-  // Track if dropdowns are open to prevent tooltip conflicts
-  const [factoryOpen, setFactoryOpen] = useState(false);
-  const [lineOpen, setLineOpen] = useState(false);
+  // Track if time dropdown is open to prevent tooltip conflicts
   const [timeOpen, setTimeOpen] = useState(false);
 
   // Data for selectors
@@ -169,64 +167,48 @@ export default function AppShell({ children }: AppShellProps) {
           {/* Global selectors */}
           {sessionReady && (
             <Stack direction="row" spacing={1} alignItems="center">
-              <Tooltip 
-                title="Filter all pages by Factory" 
-                disableHoverListener={factoryOpen}
-                disableFocusListener={factoryOpen}
+              <TextField
+                size="small"
+                label="Factory"
+                select
+                value={factoryId || ''}
+                onChange={(e) => setFactoryId(e.target.value || null)}
+                SelectProps={{
+                  MenuProps: {
+                    disableScrollLock: true,
+                  },
+                }}
+                sx={{ minWidth: 140 }}
               >
-                <TextField
-                  size="small"
-                  label="Factory"
-                  select
-                  value={factoryId || ''}
-                  onChange={(e) => setFactoryId(e.target.value || null)}
-                  SelectProps={{
-                    onOpen: () => setFactoryOpen(true),
-                    onClose: () => setFactoryOpen(false),
-                    MenuProps: {
-                      disableScrollLock: true,
-                    },
-                  }}
-                  sx={{ minWidth: 140 }}
-                >
-                  <MenuItem value="">(All)</MenuItem>
-                  {factories.map((f) => (
-                    <MenuItem key={f.id} value={f.id}>
-                      {f.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Tooltip>
+                <MenuItem value="">(All)</MenuItem>
+                {factories.map((f) => (
+                  <MenuItem key={f.id} value={f.id}>
+                    {f.name}
+                  </MenuItem>
+                ))}
+              </TextField>
 
-              <Tooltip 
-                title="Filter by Line (within the selected Factory)"
-                disableHoverListener={lineOpen}
-                disableFocusListener={lineOpen}
+              <TextField
+                size="small"
+                label="Line"
+                select
+                value={lineId || ''}
+                onChange={(e) => setLineId(e.target.value || null)}
+                SelectProps={{
+                  MenuProps: {
+                    disableScrollLock: true,
+                  },
+                }}
+                sx={{ minWidth: 120 }}
+                disabled={!factoryId}
               >
-                <TextField
-                  size="small"
-                  label="Line"
-                  select
-                  value={lineId || ''}
-                  onChange={(e) => setLineId(e.target.value || null)}
-                  SelectProps={{
-                    onOpen: () => setLineOpen(true),
-                    onClose: () => setLineOpen(false),
-                    MenuProps: {
-                      disableScrollLock: true,
-                    },
-                  }}
-                  sx={{ minWidth: 120 }}
-                  disabled={!factoryId}
-                >
-                  <MenuItem value="">(All)</MenuItem>
-                  {lines.map((l) => (
-                    <MenuItem key={l.id} value={l.id}>
-                      {l.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Tooltip>
+                <MenuItem value="">(All)</MenuItem>
+                {lines.map((l) => (
+                  <MenuItem key={l.id} value={l.id}>
+                    {l.name}
+                  </MenuItem>
+                ))}
+              </TextField>
 
               <Tooltip 
                 title="Time range for data"

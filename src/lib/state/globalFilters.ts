@@ -21,7 +21,7 @@ interface GlobalFiltersState {
 const initialState = {
   factoryId: null,
   lineId: null,
-  timeRange: 'last24h' as TimeRange,
+  timeRange: 'last90d' as TimeRange,
   customStartDate: null,
   customEndDate: null,
 };

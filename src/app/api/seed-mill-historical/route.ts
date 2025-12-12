@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
 
     // Handle special endpoints
     if (searchParams.get('getMills') === 'true') {
-      const mills = await getAvailableMills();
+      const factory = searchParams.get('factory') || undefined;
+      const mills = await getAvailableMills(factory);
       return NextResponse.json({ mills });
     }
 
@@ -40,7 +41,8 @@ export async function GET(request: NextRequest) {
 
     // Build filters from query params
     const filters: HistoricalEventsFilters = {
-      mill: searchParams.get('mill') || 'Mill 1',
+      mill: searchParams.get('mill') || undefined, // Empty string means all mills
+      factory: searchParams.get('factory') || undefined,
       startDate: searchParams.get('startDate') || undefined,
       endDate: searchParams.get('endDate') || undefined,
       state: searchParams.get('state') || undefined,
@@ -50,9 +52,11 @@ export async function GET(request: NextRequest) {
         : 50,
     };
 
-    // If no date range provided, get default
+    // If no date range provided, get default (use first available mill or fallback)
     if (!filters.startDate || !filters.endDate) {
-      const defaultRange = await getDefaultDateRange(filters.mill || 'Mill 1');
+      const mills = await getAvailableMills(filters.factory);
+      const defaultMill = filters.mill || (mills.length > 0 ? mills[0] : 'Mill 1');
+      const defaultRange = await getDefaultDateRange(defaultMill);
       filters.startDate = filters.startDate || defaultRange.startDate;
       filters.endDate = filters.endDate || defaultRange.endDate;
     }

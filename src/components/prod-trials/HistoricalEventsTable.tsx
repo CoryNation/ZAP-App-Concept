@@ -21,11 +21,13 @@ import {
   Chip,
   Paper,
 } from '@mui/material';
-import { useGlobalFilters } from '@/src/lib/state/globalFilters';
+import { useGlobalFilters, TimeRange } from '@/src/lib/state/globalFilters';
 import {
   SeedMillHistoricalEvent,
   HistoricalEventsResponse,
 } from '@/src/lib/services/seedMillHistoricalService';
+import { supabase } from '@/lib/supabaseClient';
+import { VALID_STATES } from '@/src/lib/constants/stateConstants';
 
 interface HistoricalEventsTableProps {
   initialMill?: string;
@@ -33,11 +35,12 @@ interface HistoricalEventsTableProps {
 
 // Convert timeRange from global filters to start/end dates
 function convertTimeRangeToDates(
-  timeRange: string,
+  timeRange: TimeRange,
   customStartDate: string | null,
   customEndDate: string | null
 ): { startDate: Date; endDate: Date } {
   const now = new Date();
+  const msPerDay = 24 * 60 * 60 * 1000;
   
   if (timeRange === 'custom' && customStartDate && customEndDate) {
     return {
@@ -46,17 +49,20 @@ function convertTimeRangeToDates(
     };
   }
   
-  const rangeHours: Record<string, number> = {
-    last24h: 24,
-    last7d: 168,
-    last30d: 720,
-    last60d: 1440,
-    last90d: 2160,
+  const rangeDays: Record<TimeRange, number> = {
+    last24h: 1,
+    last7d: 7,
+    last30d: 30,
+    last60d: 60,
+    last90d: 90,
+    custom: 0, // Handled above
   };
   
-  const hours = rangeHours[timeRange] || 24;
+  const days = rangeDays[timeRange] || rangeDays['last90d'];
+  const startDate = new Date(now.getTime() - days * msPerDay);
+  
   return {
-    startDate: new Date(now.getTime() - hours * 60 * 60 * 1000),
+    startDate,
     endDate: now,
   };
 }
@@ -67,8 +73,10 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<HistoricalEventsResponse | null>(null);
   const [mills, setMills] = useState<string[]>([]);
+  const [factoryName, setFactoryName] = useState<string | null>(null);
+  const [factories, setFactories] = useState<Array<{ id: string; name: string }>>([]);
   
-  // Local filters (can be overridden by user)
+  // Local filters (can be overridden by user) - default to "All" (empty string)
   const [mill, setMill] = useState<string>('');
   const [localStartDate, setLocalStartDate] = useState<string>('');
   const [localEndDate, setLocalEndDate] = useState<string>('');
@@ -86,35 +94,64 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
   const effectiveStartDate = localStartDate || globalStartDate.toISOString().split('T')[0];
   const effectiveEndDate = localEndDate || globalEndDate.toISOString().split('T')[0];
 
-  // Load available mills and set default mill
+  // Load factories to map factoryId to factory name
+  useEffect(() => {
+    async function loadFactories() {
+      try {
+        const { data: fs } = await supabase
+          .from('factories')
+          .select('id,name')
+          .order('name');
+        setFactories(fs || []);
+      } catch (err) {
+        console.error('Error loading factories:', err);
+      }
+    }
+    loadFactories();
+  }, []);
+
+  // Get factory name from factoryId
+  useEffect(() => {
+    if (factoryId) {
+      const factory = factories.find(f => f.id === factoryId);
+      setFactoryName(factory?.name || null);
+    } else {
+      setFactoryName(null);
+    }
+  }, [factoryId, factories]);
+
+  // Load available mills filtered by factory (and reset mill when factory changes)
   useEffect(() => {
     async function loadMills() {
       try {
-        const response = await fetch('/api/seed-mill-historical?getMills=true');
+        const params = new URLSearchParams({ getMills: 'true' });
+        if (factoryName) {
+          params.append('factory', factoryName);
+        }
+        const response = await fetch(`/api/seed-mill-historical?${params.toString()}`);
         const result = await response.json();
         if (result.mills && result.mills.length > 0) {
           setMills(result.mills);
-          // Set default mill if not already set
-          if (!mill) {
-            const defaultMill = initialMill || result.mills[0];
-            setMill(defaultMill);
+          // Reset mill to empty (All) when factory changes, unless it's still in the new list
+          if (mill && !result.mills.includes(mill)) {
+            setMill('');
           }
+        } else {
+          setMills([]);
+          setMill('');
         }
       } catch (err) {
         console.error('Error loading mills:', err);
-        // Set a fallback mill
-        if (!mill) {
-          setMill(initialMill || 'Mill 1');
-        }
+        setMills([]);
       }
     }
     loadMills();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [factoryName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load events when filters change
   useEffect(() => {
     async function loadEvents() {
-      if (!mill || !effectiveStartDate || !effectiveEndDate) {
+      if (!effectiveStartDate || !effectiveEndDate) {
         setLoading(false);
         return;
       }
@@ -124,12 +161,21 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
 
       try {
         const params = new URLSearchParams({
-          mill,
           startDate: new Date(effectiveStartDate).toISOString(),
           endDate: new Date(effectiveEndDate + 'T23:59:59').toISOString(), // End of day
           page: (page + 1).toString(),
           pageSize: pageSize.toString(),
         });
+
+        // Add mill filter only if a specific mill is selected (empty = All mills)
+        if (mill) {
+          params.append('mill', mill);
+        }
+
+        // Add factory filter if factory is selected
+        if (factoryName) {
+          params.append('factory', factoryName);
+        }
 
         // Only add state filter if a specific state is selected (empty = All)
         if (state) {
@@ -153,7 +199,7 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
     }
 
     loadEvents();
-  }, [mill, effectiveStartDate, effectiveEndDate, state, page, pageSize]);
+  }, [mill, factoryName, effectiveStartDate, effectiveEndDate, state, page, pageSize]);
   
   // Reset local dates when global filters change (so table syncs with global filters)
   useEffect(() => {
@@ -192,6 +238,8 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
         return 'warning';
       case 'CHANGEOVER':
         return 'info';
+      case 'UNKNOWN':
+        return 'default';
       default:
         return 'default';
     }
@@ -214,6 +262,7 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
               size="small"
               sx={{ minWidth: 120 }}
             >
+              <MenuItem value="">(All)</MenuItem>
               {mills.map((m) => (
                 <MenuItem key={m} value={m}>
                   {m}
@@ -255,13 +304,14 @@ export default function HistoricalEventsTable({ initialMill }: HistoricalEventsT
               }}
               size="small"
               sx={{ minWidth: 140 }}
+              displayEmpty
             >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="DOWNTIME">Downtime</MenuItem>
-              <MenuItem value="RUNNING">Running</MenuItem>
-              <MenuItem value="UNSCHEDULED">Unscheduled</MenuItem>
-              <MenuItem value="UNKNOWN">Unknown</MenuItem>
-              <MenuItem value="CHANGEOVER">Changeover</MenuItem>
+              <MenuItem value="">(All)</MenuItem>
+              {VALID_STATES.map((stateValue) => (
+                <MenuItem key={stateValue} value={stateValue}>
+                  {stateValue.charAt(0) + stateValue.slice(1).toLowerCase()}
+                </MenuItem>
+              ))}
             </TextField>
           </Stack>
 

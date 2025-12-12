@@ -17,6 +17,7 @@ import {
   ControlChartPoint,
   MaintenanceMetrics,
 } from '../types';
+import { VALID_STATES } from '../constants/stateConstants';
 
 const LINE_NAMES = ['Line A', 'Line B', 'Line C'];
 const DOWNTIME_CAUSES = [
@@ -264,6 +265,87 @@ export function generateSpeedVsDowntime(
   }
 
   return points;
+}
+
+/**
+ * Generate historical seed mill events (for demo mode)
+ */
+export function generateHistoricalEvents(
+  startDate: Date,
+  endDate: Date,
+  mill: string = 'Mill 1'
+): any[] {
+  const events: any[] = [];
+  const dayMs = 24 * 60 * 60 * 1000;
+  const numDays = Math.ceil((endDate.getTime() - startDate.getTime()) / dayMs);
+  
+  // Use valid states from constants to ensure consistency with Supabase constraint
+  const states = [...VALID_STATES];
+  const reasons = [
+    'Changeover',
+    'Material Shortage',
+    'Equipment Failure',
+    'Planned Maintenance',
+    'Quality Issue',
+    'Calibration',
+    'Power Outage',
+    'Operator Training',
+  ];
+  const categories = ['Operational', 'Maintenance', 'Quality', 'Material', 'Equipment'];
+  const equipment = ['M-101', 'M-102', 'M-201', 'M-202', 'M-301', 'M-302'];
+  const shifts = ['1st', '2nd', '3rd'];
+  const productSpecs = ['4.5" x 0.25"', '6" x 0.30"', '8" x 0.35"', '10" x 0.40"'];
+  
+  // Generate events throughout the date range
+  // More events in recent days, fewer in older days
+  const eventsPerDay = 8 + Math.floor(Math.random() * 12); // 8-20 events per day
+  
+  for (let day = 0; day < numDays; day++) {
+    const currentDay = new Date(startDate.getTime() + day * dayMs);
+    const dayEvents = Math.floor(eventsPerDay * (1 - day / (numDays * 2))); // Fewer events as days go back
+    
+    for (let i = 0; i < dayEvents; i++) {
+      const hour = Math.floor(Math.random() * 24);
+      const minute = Math.floor(Math.random() * 60);
+      const eventTime = new Date(currentDay);
+      eventTime.setHours(hour, minute, 0, 0);
+      
+      const state = states[Math.floor(Math.random() * states.length)];
+      const minutes = state === 'DOWNTIME' 
+        ? 5 + Math.random() * 120 // 5-125 minutes for downtime
+        : state === 'RUNNING'
+        ? 60 + Math.random() * 480 // Running events are longer
+        : 15 + Math.random() * 45; // Other states
+      
+      const reason = state === 'DOWNTIME' 
+        ? reasons[Math.floor(Math.random() * reasons.length)]
+        : null;
+      
+      events.push({
+        id: `demo-${day}-${i}-${Math.random().toString(36).substr(2, 9)}`,
+        factory: 'Rochelle, IL',
+        mill: mill,
+        event_time: eventTime.toISOString(),
+        shift: shifts[Math.floor(Math.random() * shifts.length)],
+        fy_week: `Week ${Math.floor(day / 7) + 1}`,
+        duration_text: `${Math.floor(minutes / 60)}:${String(Math.floor(minutes % 60)).padStart(2, '0')}:${String(Math.floor((minutes % 1) * 60)).padStart(2, '0')}`,
+        minutes: Math.round(minutes * 10) / 10,
+        state: state,
+        reason: reason,
+        category: categories[Math.floor(Math.random() * categories.length)],
+        sub_category: reason ? `${reason} - Detail` : null,
+        equipment: state === 'DOWNTIME' ? equipment[Math.floor(Math.random() * equipment.length)] : null,
+        comment: state === 'DOWNTIME' && Math.random() > 0.5 ? `Issue resolved, production resumed` : null,
+        month: currentDay.toLocaleString('en-US', { month: 'short' }),
+        product_spec: state === 'RUNNING' ? productSpecs[Math.floor(Math.random() * productSpecs.length)] : null,
+        size: state === 'RUNNING' ? productSpecs[Math.floor(Math.random() * productSpecs.length)] : null,
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
+  
+  // Sort by event_time descending (most recent first)
+  return events.sort((a, b) => new Date(b.event_time).getTime() - new Date(a.event_time).getTime());
 }
 
 /**
